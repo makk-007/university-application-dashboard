@@ -1,0 +1,5 @@
+node_modules
+.env
+scholarships_state.json
+application_state.json
+universities.csv
