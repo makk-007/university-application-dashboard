@@ -12,6 +12,7 @@ import {
   DollarSign,
   Filter,
 } from "lucide-react";
+import { toast } from "sonner";
 import {
   Scholarship,
   ApplicationStatus,
@@ -44,7 +45,6 @@ import {
   Tooltip,
   ResponsiveContainer,
   CartesianGrid,
-  Cell,
 } from "recharts";
 
 const CURRENCIES = ["USD", "EUR", "GBP", "SEK", "GHS"];
@@ -54,12 +54,10 @@ const COVERAGE_OPTIONS = [
   "Stipend Only",
   "Tuition + Stipend",
 ] as const;
-
 const inputCls =
   "flex h-9 w-full rounded-md border border-border bg-input-background px-3 py-1 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] transition-[color,box-shadow]";
 const selectCls = `${inputCls} appearance-none`;
 
-// ── Add Scholarship Modal ─────────────────────────────────────────────────────
 function AddScholarshipModal({
   onClose,
   onSaved,
@@ -84,7 +82,6 @@ function AddScholarshipModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const set = (k: string, v: any) => setForm((f) => ({ ...f, [k]: v }));
-
   const toggleUni = (id: string) =>
     setForm((f) => ({
       ...f,
@@ -113,10 +110,12 @@ function AddScholarshipModal({
         deadline: form.deadline || null,
         eligibleUniversities: form.eligibleUniversities,
       });
+      toast.success("Scholarship added", { description: form.name.trim() });
       onSaved();
       onClose();
     } catch (e: any) {
       setError(e.message);
+      toast.error("Failed to add scholarship", { description: e.message });
     } finally {
       setSaving(false);
     }
@@ -310,7 +309,6 @@ function AddScholarshipModal({
   );
 }
 
-// ── Scholarship Detail Drawer ─────────────────────────────────────────────────
 function ScholarshipDetailDrawer({
   scholarship,
   universities,
@@ -333,8 +331,6 @@ function ScholarshipDetailDrawer({
   const [notesTimer, setNotesTimer] = useState<ReturnType<
     typeof setTimeout
   > | null>(null);
-
-  // Editable field state
   const [editCoverage, setEditCoverage] = useState(scholarship.coverage);
   const [editAmount, setEditAmount] = useState(String(scholarship.amount ?? 0));
   const [editCurrency, setEditCurrency] = useState(
@@ -355,7 +351,6 @@ function ScholarshipDetailDrawer({
     setEditDeadline(scholarship.deadline ?? "");
   }, [scholarship.id]);
 
-  // Generic field saver
   const saveField = async (field: string, value: any) => {
     setSavingField(field);
     try {
@@ -363,6 +358,11 @@ function ScholarshipDetailDrawer({
       const updated = { ...s, [field]: value === "" ? null : value };
       setS(updated);
       onUpdated(updated);
+      toast.success("Saved", {
+        description: `${field.replace(/([A-Z])/g, " $1").trim()} updated`,
+      });
+    } catch (e: any) {
+      toast.error("Failed to save", { description: e.message });
     } finally {
       setSavingField(null);
     }
@@ -371,78 +371,105 @@ function ScholarshipDetailDrawer({
   const completed = s.checklist.filter((c) => c.completed).length;
   const total = s.checklist.length;
   const progress = total > 0 ? (completed / total) * 100 : 0;
-
   const handleStatusChange = async (status: ApplicationStatus) => {
     setSavingStatus(true);
-    await updateScholarship(s.id, { status });
-    const updated = { ...s, status };
-    setS(updated);
-    onUpdated(updated);
-    setSavingStatus(false);
+    try {
+      await updateScholarship(s.id, { status });
+      const updated = { ...s, status };
+      setS(updated);
+      onUpdated(updated);
+      toast.success("Status updated", {
+        description: statusConfig[status].label,
+      });
+    } catch (e: any) {
+      toast.error("Failed to update status", { description: e.message });
+    } finally {
+      setSavingStatus(false);
+    }
   };
-
   const handleNotesChange = (val: string) => {
     setNotes(val);
     if (notesTimer) clearTimeout(notesTimer);
     const t = setTimeout(async () => {
       setSavingNotes(true);
-      await updateScholarship(s.id, { notes: val });
-      const updated = { ...s, notes: val };
-      setS(updated);
-      onUpdated(updated);
-      setSavingNotes(false);
+      try {
+        await updateScholarship(s.id, { notes: val });
+        const updated = { ...s, notes: val };
+        setS(updated);
+        onUpdated(updated);
+      } catch (e: any) {
+        toast.error("Failed to save notes", { description: e.message });
+      } finally {
+        setSavingNotes(false);
+      }
     }, 800);
     setNotesTimer(t);
   };
-
   const handleToggleUni = async (uniId: string) => {
     const newList = s.eligibleUniversities.includes(uniId)
       ? s.eligibleUniversities.filter((x) => x !== uniId)
       : [...s.eligibleUniversities, uniId];
-    await setScholarshipUniversities(s.id, newList);
-    const updated = { ...s, eligibleUniversities: newList };
-    setS(updated);
-    onUpdated(updated);
+    try {
+      await setScholarshipUniversities(s.id, newList);
+      const updated = { ...s, eligibleUniversities: newList };
+      setS(updated);
+      onUpdated(updated);
+    } catch (e: any) {
+      toast.error("Failed to update universities", { description: e.message });
+    }
   };
-
   const handleToggleCheck = async (itemId: string, checked: boolean) => {
-    await updateScholarshipChecklistItem(itemId, checked);
-    const updated = {
-      ...s,
-      checklist: s.checklist.map((c) =>
-        c.id === itemId ? { ...c, completed: checked } : c,
-      ),
-    };
-    setS(updated);
-    onUpdated(updated);
+    try {
+      await updateScholarshipChecklistItem(itemId, checked);
+      const updated = {
+        ...s,
+        checklist: s.checklist.map((c) =>
+          c.id === itemId ? { ...c, completed: checked } : c,
+        ),
+      };
+      setS(updated);
+      onUpdated(updated);
+    } catch (e: any) {
+      toast.error("Failed to update checklist", { description: e.message });
+    }
   };
-
   const handleAddCheck = async () => {
     if (!newCheckItem.trim()) return;
-    const item = await addScholarshipChecklistItem(s.id, newCheckItem.trim());
-    const updated = { ...s, checklist: [...s.checklist, item] };
-    setS(updated);
-    onUpdated(updated);
-    setNewCheckItem("");
+    try {
+      const item = await addScholarshipChecklistItem(s.id, newCheckItem.trim());
+      const updated = { ...s, checklist: [...s.checklist, item] };
+      setS(updated);
+      onUpdated(updated);
+      setNewCheckItem("");
+      toast.success("Requirement added");
+    } catch (e: any) {
+      toast.error("Failed to add requirement", { description: e.message });
+    }
   };
-
   const handleDeleteCheck = async (itemId: string) => {
-    await deleteScholarshipChecklistItem(itemId);
-    const updated = {
-      ...s,
-      checklist: s.checklist.filter((c) => c.id !== itemId),
-    };
-    setS(updated);
-    onUpdated(updated);
+    try {
+      await deleteScholarshipChecklistItem(itemId);
+      const updated = {
+        ...s,
+        checklist: s.checklist.filter((c) => c.id !== itemId),
+      };
+      setS(updated);
+      onUpdated(updated);
+    } catch (e: any) {
+      toast.error("Failed to remove requirement", { description: e.message });
+    }
   };
-
   const handleDelete = async () => {
     if (!confirm(`Delete "${s.name}"? This cannot be undone.`)) return;
-    await deleteScholarship(s.id);
-    onDeleted(s.id);
+    try {
+      await deleteScholarship(s.id);
+      toast.success("Scholarship deleted", { description: s.name });
+      onDeleted(s.id);
+    } catch (e: any) {
+      toast.error("Failed to delete scholarship", { description: e.message });
+    }
   };
 
-  // Recompute from local edit state
   const amountGHS = (Number(editAmount) || 0) * (FX_TO_GHS[editCurrency] ?? 1);
   const daysUntilDeadline = getDaysUntil((editDeadline || s.deadline) ?? null);
   const daysUntilOpen = getDaysUntil((editStartDate || s.startDate) ?? null);
@@ -470,11 +497,8 @@ function ScholarshipDetailDrawer({
             </button>
           </div>
         </div>
-
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Editable Info grid */}
           <div className="grid grid-cols-2 gap-4">
-            {/* Coverage */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-sm font-medium text-muted-foreground">
@@ -499,8 +523,6 @@ function ScholarshipDetailDrawer({
                 ))}
               </select>
             </div>
-
-            {/* Amount + Currency */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-sm font-medium text-muted-foreground">
@@ -542,8 +564,6 @@ function ScholarshipDetailDrawer({
                 })}
               </p>
             </div>
-
-            {/* Opening Date */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-sm font-medium text-muted-foreground">
@@ -569,8 +589,6 @@ function ScholarshipDetailDrawer({
                 </p>
               )}
             </div>
-
-            {/* Deadline */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-sm font-medium text-muted-foreground">
@@ -600,7 +618,6 @@ function ScholarshipDetailDrawer({
             </div>
           </div>
 
-          {/* Status button group */}
           <div>
             <label className="text-sm font-medium text-foreground mb-2 block">
               Status
@@ -623,7 +640,6 @@ function ScholarshipDetailDrawer({
             </div>
           </div>
 
-          {/* Progress */}
           <div>
             <div className="flex justify-between items-center mb-2">
               <label className="text-sm font-medium text-foreground">
@@ -641,10 +657,9 @@ function ScholarshipDetailDrawer({
             </div>
           </div>
 
-          {/* Checklist */}
           <div>
             <label className="text-sm font-medium text-foreground mb-3 block">
-              Requirements Checklist
+              Requirements Checklist{" "}
               <span className="ml-2 text-xs text-muted-foreground font-normal">
                 {completed}/{total}
               </span>
@@ -693,7 +708,6 @@ function ScholarshipDetailDrawer({
             </div>
           </div>
 
-          {/* Notes */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm font-medium text-foreground">
@@ -727,7 +741,6 @@ function ScholarshipDetailDrawer({
             </a>
           )}
 
-          {/* Eligible Universities */}
           {universities.length > 0 && (
             <div>
               <label className="text-sm font-medium text-foreground mb-3 block">
@@ -761,7 +774,6 @@ function ScholarshipDetailDrawer({
   );
 }
 
-// ── Main Scholarships Page ────────────────────────────────────────────────────
 export function Scholarships() {
   const [scholarships, setScholarships] = useState<Scholarship[]>([]);
   const [universities, setUniversities] = useState<University[]>([]);
@@ -787,11 +799,11 @@ export function Scholarships() {
       setUniversities(unis);
     } catch (e: any) {
       setError(e.message);
+      toast.error("Failed to load scholarships", { description: e.message });
     } finally {
       setLoading(false);
     }
   }, []);
-
   useEffect(() => {
     load();
   }, [load]);
@@ -807,7 +819,6 @@ export function Scholarships() {
       }),
     [scholarships, searchQuery, statusFilter],
   );
-
   const fundingData = useMemo(
     () =>
       universities
@@ -827,7 +838,6 @@ export function Scholarships() {
         .sort((a, b) => b.value - a.value),
     [scholarships, universities],
   );
-
   const totalPotential = useMemo(
     () =>
       scholarships.reduce(
@@ -836,14 +846,12 @@ export function Scholarships() {
       ),
     [scholarships],
   );
-
   const handleUpdated = (updated: Scholarship) => {
     setScholarships((prev) =>
       prev.map((s) => (s.id === updated.id ? updated : s)),
     );
     if (selected?.id === updated.id) setSelected(updated);
   };
-
   const handleDeleted = (id: string) => {
     setScholarships((prev) => prev.filter((s) => s.id !== id));
     if (selected?.id === id) setSelected(null);
@@ -851,7 +859,6 @@ export function Scholarships() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="bg-card border-b border-border px-8 py-6">
         <div className="flex items-center justify-between">
           <div>
@@ -888,9 +895,7 @@ export function Scholarships() {
           </div>
         </div>
       </header>
-
       <div className="p-8 space-y-6">
-        {/* Tabs */}
         <div className="flex gap-1 bg-muted p-1 rounded-lg w-fit">
           {(["list", "funding"] as const).map((tab) => (
             <button
@@ -902,7 +907,6 @@ export function Scholarships() {
             </button>
           ))}
         </div>
-
         {loading ? (
           <div className="flex items-center justify-center py-24">
             <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
@@ -920,7 +924,6 @@ export function Scholarships() {
           </div>
         ) : activeTab === "list" ? (
           <>
-            {/* Filters */}
             <div className="bg-card rounded-xl border p-4 shadow-sm">
               <div className="flex flex-wrap gap-4">
                 <div className="flex-1 min-w-64 relative">
@@ -953,8 +956,6 @@ export function Scholarships() {
                 </div>
               </div>
             </div>
-
-            {/* Cards grid — matches original Figma scholarship card layout */}
             {filtered.length === 0 ? (
               <div className="bg-card rounded-xl border p-12 text-center shadow-sm">
                 <DollarSign className="size-10 text-muted-foreground/30 mx-auto mb-3" />
@@ -982,7 +983,6 @@ export function Scholarships() {
                           schol.checklist.length) *
                         100
                       : 0;
-
                   return (
                     <div
                       key={schol.id}
@@ -1005,7 +1005,6 @@ export function Scholarships() {
                               {schol.currency} {schol.amount?.toLocaleString()}
                             </span>
                           </div>
-
                           {schol.deadline && (
                             <div
                               className={`border-l-4 ${urgencyBorder[urgency]} p-3 rounded-r-lg`}
@@ -1025,7 +1024,6 @@ export function Scholarships() {
                               </p>
                             </div>
                           )}
-
                           {schol.checklist.length > 0 && (
                             <div>
                               <div className="flex justify-between text-xs text-muted-foreground mb-1">
@@ -1046,7 +1044,6 @@ export function Scholarships() {
                               </div>
                             </div>
                           )}
-
                           {eligNames.length > 0 && (
                             <div>
                               <p className="text-sm text-muted-foreground mb-2">
@@ -1083,7 +1080,6 @@ export function Scholarships() {
             )}
           </>
         ) : (
-          /* Funding Overview */
           <div className="space-y-6">
             {fundingData.length === 0 ? (
               <div className="bg-card rounded-xl border p-12 text-center shadow-sm">
@@ -1165,7 +1161,6 @@ export function Scholarships() {
           </div>
         )}
       </div>
-
       {showAddModal && (
         <AddScholarshipModal
           onClose={() => setShowAddModal(false)}

@@ -1,15 +1,21 @@
-import { Outlet, Link, useLocation, Navigate } from 'react-router';
+import { Outlet, Link, useLocation, Navigate } from "react-router";
 import {
-  LayoutDashboard, GraduationCap, DollarSign, Calendar, Settings, LogOut,
-} from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+  LayoutDashboard,
+  GraduationCap,
+  DollarSign,
+  Calendar,
+  Settings,
+  LogOut,
+} from "lucide-react";
+import { toast } from "sonner";
+import { useAuth } from "../context/AuthContext";
 
 const navItems = [
-  { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/universities', label: 'Universities', icon: GraduationCap },
-  { path: '/scholarships', label: 'Scholarships', icon: DollarSign },
-  { path: '/timeline', label: 'Timeline', icon: Calendar },
-  { path: '/settings', label: 'Settings', icon: Settings },
+  { path: "/", label: "Dashboard", icon: LayoutDashboard },
+  { path: "/universities", label: "Universities", icon: GraduationCap },
+  { path: "/scholarships", label: "Scholarships", icon: DollarSign },
+  { path: "/timeline", label: "Timeline", icon: Calendar },
+  { path: "/settings", label: "Settings", icon: Settings },
 ];
 
 export function Layout() {
@@ -26,7 +32,7 @@ export function Layout() {
 
   if (!user) return <Navigate to="/login" replace />;
 
-  const initials = user.email ? user.email.slice(0, 2).toUpperCase() : 'U';
+  const initials = user.email ? user.email.slice(0, 2).toUpperCase() : "U";
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -48,7 +54,7 @@ export function Layout() {
             {navItems.map((item) => {
               const isActive =
                 location.pathname === item.path ||
-                (item.path !== '/' && location.pathname.startsWith(item.path));
+                (item.path !== "/" && location.pathname.startsWith(item.path));
               const Icon = item.icon;
               return (
                 <li key={item.path}>
@@ -56,8 +62,8 @@ export function Layout() {
                     to={item.path}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
                       isActive
-                        ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
-                        : 'text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground'
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                        : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
                     }`}
                   >
                     <Icon className="size-4 shrink-0" />
@@ -75,11 +81,16 @@ export function Layout() {
               {initials}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-sidebar-foreground truncate">{user.email}</p>
+              <p className="text-sm font-medium text-sidebar-foreground truncate">
+                {user.email}
+              </p>
               <p className="text-xs text-muted-foreground">Graduate Student</p>
             </div>
             <button
-              onClick={signOut}
+              onClick={async () => {
+                await signOut();
+                toast.success("Signed out successfully");
+              }}
               title="Sign out"
               className="text-muted-foreground hover:text-destructive transition-colors p-1 rounded"
             >
