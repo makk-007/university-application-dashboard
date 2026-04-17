@@ -11,6 +11,7 @@ import {
   Check,
   Loader2,
 } from "lucide-react";
+import { toast } from "sonner";
 import { University, ApplicationStatus } from "../types";
 import { StatusBadge } from "../components/StatusBadge";
 import {
@@ -40,12 +41,10 @@ const REGIONS = [
 ];
 const CURRENCIES = ["USD", "EUR", "GBP", "SEK", "GHS"];
 
-// ── Shared input style matching the design system ─────────────────────────────
 const inputCls =
   "flex h-9 w-full rounded-md border border-border bg-input-background px-3 py-1 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] transition-[color,box-shadow] disabled:opacity-50";
 const selectCls = `${inputCls} appearance-none`;
 
-// ── Add University Modal ──────────────────────────────────────────────────────
 function AddUniversityModal({
   onClose,
   onSaved,
@@ -87,10 +86,12 @@ function AddUniversityModal({
         notes: form.notes,
         status: form.status,
       });
+      toast.success("University added", { description: form.name.trim() });
       onSaved();
       onClose();
     } catch (e: any) {
       setError(e.message);
+      toast.error("Failed to add university", { description: e.message });
     } finally {
       setSaving(false);
     }
@@ -261,7 +262,6 @@ function AddUniversityModal({
   );
 }
 
-// ── University Detail Drawer ──────────────────────────────────────────────────
 function UniversityDetailDrawer({
   university,
   onClose,
@@ -283,7 +283,6 @@ function UniversityDetailDrawer({
     typeof setTimeout
   > | null>(null);
 
-  // Local editable field state — initialised from prop, kept in sync on university switch
   const [editRegion, setEditRegion] = useState(university.region);
   const [editTuition, setEditTuition] = useState(
     String(university.tuition ?? 0),
@@ -306,7 +305,6 @@ function UniversityDetailDrawer({
     setEditDeadline(university.deadline ?? "");
   }, [university.id]);
 
-  // Generic field saver — saves on blur / select change
   const saveField = async (field: string, value: any) => {
     setSavingField(field);
     try {
@@ -314,6 +312,11 @@ function UniversityDetailDrawer({
       const updated = { ...uni, [field]: value === "" ? null : value };
       setUni(updated);
       onUpdated(updated);
+      toast.success("Saved", {
+        description: `${field.replace(/([A-Z])/g, " $1").trim()} updated`,
+      });
+    } catch (e: any) {
+      toast.error("Failed to save", { description: e.message });
     } finally {
       setSavingField(null);
     }
@@ -325,11 +328,19 @@ function UniversityDetailDrawer({
 
   const handleStatusChange = async (status: ApplicationStatus) => {
     setSavingStatus(true);
-    await updateUniversity(uni.id, { status });
-    const updated = { ...uni, status };
-    setUni(updated);
-    onUpdated(updated);
-    setSavingStatus(false);
+    try {
+      await updateUniversity(uni.id, { status });
+      const updated = { ...uni, status };
+      setUni(updated);
+      onUpdated(updated);
+      toast.success("Status updated", {
+        description: statusConfig[status].label,
+      });
+    } catch (e: any) {
+      toast.error("Failed to update status", { description: e.message });
+    } finally {
+      setSavingStatus(false);
+    }
   };
 
   const handleNotesChange = (val: string) => {
@@ -337,63 +348,82 @@ function UniversityDetailDrawer({
     if (notesTimer) clearTimeout(notesTimer);
     const t = setTimeout(async () => {
       setSavingNotes(true);
-      await updateUniversity(uni.id, { notes: val });
-      const updated = { ...uni, notes: val };
-      setUni(updated);
-      onUpdated(updated);
-      setSavingNotes(false);
+      try {
+        await updateUniversity(uni.id, { notes: val });
+        const updated = { ...uni, notes: val };
+        setUni(updated);
+        onUpdated(updated);
+      } catch (e: any) {
+        toast.error("Failed to save notes", { description: e.message });
+      } finally {
+        setSavingNotes(false);
+      }
     }, 800);
     setNotesTimer(t);
   };
 
   const handleToggleCheck = async (itemId: string, checked: boolean) => {
-    await updateChecklistItem(itemId, checked);
-    const updated = {
-      ...uni,
-      checklist: uni.checklist.map((c) =>
-        c.id === itemId ? { ...c, completed: checked } : c,
-      ),
-    };
-    setUni(updated);
-    onUpdated(updated);
+    try {
+      await updateChecklistItem(itemId, checked);
+      const updated = {
+        ...uni,
+        checklist: uni.checklist.map((c) =>
+          c.id === itemId ? { ...c, completed: checked } : c,
+        ),
+      };
+      setUni(updated);
+      onUpdated(updated);
+    } catch (e: any) {
+      toast.error("Failed to update checklist", { description: e.message });
+    }
   };
 
   const handleAddCheck = async () => {
     if (!newCheckItem.trim()) return;
-    const item = await addChecklistItem(uni.id, newCheckItem.trim());
-    const updated = { ...uni, checklist: [...uni.checklist, item] };
-    setUni(updated);
-    onUpdated(updated);
-    setNewCheckItem("");
+    try {
+      const item = await addChecklistItem(uni.id, newCheckItem.trim());
+      const updated = { ...uni, checklist: [...uni.checklist, item] };
+      setUni(updated);
+      onUpdated(updated);
+      setNewCheckItem("");
+      toast.success("Requirement added");
+    } catch (e: any) {
+      toast.error("Failed to add requirement", { description: e.message });
+    }
   };
 
   const handleDeleteCheck = async (itemId: string) => {
-    await deleteChecklistItem(itemId);
-    const updated = {
-      ...uni,
-      checklist: uni.checklist.filter((c) => c.id !== itemId),
-    };
-    setUni(updated);
-    onUpdated(updated);
+    try {
+      await deleteChecklistItem(itemId);
+      const updated = {
+        ...uni,
+        checklist: uni.checklist.filter((c) => c.id !== itemId),
+      };
+      setUni(updated);
+      onUpdated(updated);
+    } catch (e: any) {
+      toast.error("Failed to remove requirement", { description: e.message });
+    }
   };
 
   const handleDelete = async () => {
     if (!confirm(`Delete "${uni.name}"? This cannot be undone.`)) return;
-    await deleteUniversity(uni.id);
-    onDeleted(uni.id);
+    try {
+      await deleteUniversity(uni.id);
+      toast.success("University deleted", { description: uni.name });
+      onDeleted(uni.id);
+    } catch (e: any) {
+      toast.error("Failed to delete university", { description: e.message });
+    }
   };
 
-  // Recompute from local edit state so urgency updates in real time as user changes the date
   const daysUntilDeadline = getDaysUntil(editDeadline || uni.deadline);
   const daysUntilOpen = getDaysUntil(editStartDate || uni.startDate);
 
   return (
     <>
-      {/* Backdrop */}
       <div className="fixed inset-0 bg-black/30 z-40" onClick={onClose} />
-      {/* Drawer — slides in from right, matches original max-w-2xl */}
       <div className="fixed right-0 top-0 h-full w-full max-w-2xl bg-card shadow-2xl z-50 flex flex-col overflow-hidden border-l border-border">
-        {/* Sticky header */}
         <div className="sticky top-0 bg-card border-b border-border px-6 py-4 flex items-center justify-between">
           <h2 className="text-xl font-semibold text-card-foreground truncate pr-4">
             {uni.name}
@@ -415,9 +445,7 @@ function UniversityDetailDrawer({
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Editable Info grid */}
           <div className="grid grid-cols-2 gap-4">
-            {/* Region */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-sm font-medium text-muted-foreground">
@@ -441,7 +469,6 @@ function UniversityDetailDrawer({
               </select>
             </div>
 
-            {/* Tuition + Currency */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-sm font-medium text-muted-foreground">
@@ -478,7 +505,6 @@ function UniversityDetailDrawer({
               </div>
             </div>
 
-            {/* Opening Date */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-sm font-medium text-muted-foreground">
@@ -505,7 +531,6 @@ function UniversityDetailDrawer({
               )}
             </div>
 
-            {/* Deadline */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-sm font-medium text-muted-foreground">
@@ -535,7 +560,6 @@ function UniversityDetailDrawer({
             </div>
           </div>
 
-          {/* Status selector — button group like the original */}
           <div>
             <label className="text-sm font-medium text-foreground mb-2 block">
               Application Status
@@ -549,11 +573,7 @@ function UniversityDetailDrawer({
                     key={status}
                     onClick={() => handleStatusChange(status)}
                     disabled={savingStatus}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border-2 ${
-                      isSelected
-                        ? `${config.color} ${config.bgColor} ${config.borderColor}`
-                        : "bg-muted text-muted-foreground border-transparent hover:border-border"
-                    }`}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border-2 ${isSelected ? `${config.color} ${config.bgColor} ${config.borderColor}` : "bg-muted text-muted-foreground border-transparent hover:border-border"}`}
                   >
                     {config.label}
                   </button>
@@ -562,7 +582,6 @@ function UniversityDetailDrawer({
             </div>
           </div>
 
-          {/* Progress bar */}
           <div>
             <div className="flex justify-between items-center mb-2">
               <label className="text-sm font-medium text-foreground">
@@ -580,10 +599,9 @@ function UniversityDetailDrawer({
             </div>
           </div>
 
-          {/* Checklist */}
           <div>
             <label className="text-sm font-medium text-foreground mb-3 block">
-              Requirements Checklist
+              Requirements Checklist{" "}
               <span className="ml-2 text-xs text-muted-foreground font-normal">
                 {completed}/{total}
               </span>
@@ -632,7 +650,6 @@ function UniversityDetailDrawer({
             </div>
           </div>
 
-          {/* Notes */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm font-medium text-foreground">
@@ -654,7 +671,6 @@ function UniversityDetailDrawer({
             />
           </div>
 
-          {/* Application link */}
           {uni.applicationLink && (
             <a
               href={uni.applicationLink}
@@ -667,7 +683,6 @@ function UniversityDetailDrawer({
             </a>
           )}
 
-          {/* Linked scholarships */}
           {uni.scholarships && uni.scholarships.length > 0 && (
             <div>
               <label className="text-sm font-medium text-foreground mb-3 block">
@@ -699,7 +714,6 @@ function UniversityDetailDrawer({
   );
 }
 
-// ── Main Universities Page ────────────────────────────────────────────────────
 export function Universities() {
   const [universities, setUniversities] = useState<University[]>([]);
   const [loading, setLoading] = useState(true);
@@ -719,6 +733,7 @@ export function Universities() {
       setUniversities(await getUniversities());
     } catch (e: any) {
       setError(e.message);
+      toast.error("Failed to load universities", { description: e.message });
     } finally {
       setLoading(false);
     }
@@ -760,7 +775,6 @@ export function Universities() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header — matches original Figma layout */}
       <header className="bg-card border-b border-border px-8 py-6">
         <div className="flex items-center justify-between">
           <div>
@@ -793,7 +807,6 @@ export function Universities() {
       </header>
 
       <div className="p-8">
-        {/* Filters — matches original layout */}
         <div className="bg-card rounded-xl border p-4 mb-6 shadow-sm">
           <div className="flex flex-wrap gap-4">
             <div className="flex-1 min-w-64">
@@ -842,7 +855,6 @@ export function Universities() {
           </div>
         </div>
 
-        {/* Table — proper HTML table matching original */}
         {loading ? (
           <div className="flex items-center justify-center py-24">
             <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
@@ -952,7 +964,6 @@ export function Universities() {
                   })}
                 </tbody>
               </table>
-
               {filtered.length === 0 && (
                 <div className="text-center py-12">
                   <p className="text-muted-foreground text-sm">
