@@ -1,5 +1,6 @@
 import { useAuth } from "../context/AuthContext";
-import { LogOut, User, Shield, Info } from "lucide-react";
+import { useTheme } from "../context/ThemeContext";
+import { LogOut, User, Shield, Info, Moon, Sun } from "lucide-react";
 import { toast } from "sonner";
 
 const inputCls =
@@ -7,6 +8,7 @@ const inputCls =
 
 export function Settings() {
   const { user, signOut } = useAuth();
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <div className="min-h-screen bg-background">
@@ -40,6 +42,46 @@ export function Settings() {
                 value={user?.id ?? ""}
                 className={`${inputCls} font-mono text-xs`}
               />
+            </div>
+          </div>
+        </div>
+
+        {/* Appearance */}
+        <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+          <div className="flex items-center gap-3 px-6 py-4 border-b border-border">
+            {theme === "dark" ? (
+              <Moon className="size-4 text-muted-foreground" />
+            ) : (
+              <Sun className="size-4 text-muted-foreground" />
+            )}
+            <h2 className="text-base font-semibold text-foreground">
+              Appearance
+            </h2>
+          </div>
+          <div className="px-6 py-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-foreground">Dark mode</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {theme === "dark"
+                    ? "Dark theme is active"
+                    : "Light theme is active"}
+                </p>
+              </div>
+              <button
+                onClick={toggleTheme}
+                role="switch"
+                aria-checked={theme === "dark"}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                  theme === "dark" ? "bg-primary" : "bg-muted-foreground/30"
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                    theme === "dark" ? "translate-x-6" : "translate-x-1"
+                  }`}
+                />
+              </button>
             </div>
           </div>
         </div>
