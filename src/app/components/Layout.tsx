@@ -6,9 +6,12 @@ import {
   Calendar,
   Settings,
   LogOut,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
 
 const navItems = [
   { path: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -21,6 +24,7 @@ const navItems = [
 export function Layout() {
   const location = useLocation();
   const { user, loading, signOut } = useAuth();
+  const { theme, toggleTheme } = useTheme();
 
   if (loading) {
     return (
@@ -86,6 +90,23 @@ export function Layout() {
               </p>
               <p className="text-xs text-muted-foreground">Graduate Student</p>
             </div>
+            {/* Dark mode toggle */}
+            <button
+              onClick={toggleTheme}
+              title={
+                theme === "dark"
+                  ? "Switch to light mode"
+                  : "Switch to dark mode"
+              }
+              className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded"
+            >
+              {theme === "dark" ? (
+                <Sun className="size-4" />
+              ) : (
+                <Moon className="size-4" />
+              )}
+            </button>
+            {/* Sign out */}
             <button
               onClick={async () => {
                 await signOut();

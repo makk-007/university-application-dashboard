@@ -19,6 +19,7 @@ import {
   University,
   FX_TO_GHS,
 } from "../types";
+import { ConfirmDeleteModal } from "../components/ConfirmDeleteModal";
 import { StatusBadge } from "../components/StatusBadge";
 import {
   statusConfig,
@@ -55,8 +56,8 @@ const COVERAGE_OPTIONS = [
   "Tuition + Stipend",
 ] as const;
 const inputCls =
-  "flex h-9 w-full rounded-md border border-border bg-input-background px-3 py-1 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] transition-[color,box-shadow]";
-const selectCls = `${inputCls} appearance-none`;
+  "flex h-9 w-full rounded-md border border-border bg-input-background px-3 py-1 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] transition-[color,box-shadow]";
+const selectCls = `${inputCls} appearance-none dark:bg-input dark:[color-scheme:dark]`;
 
 function AddScholarshipModal({
   onClose,
@@ -326,6 +327,7 @@ function ScholarshipDetailDrawer({
   const [savingStatus, setSavingStatus] = useState(false);
   const [savingNotes, setSavingNotes] = useState(false);
   const [savingField, setSavingField] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [notes, setNotes] = useState(scholarship.notes ?? "");
   const [newCheckItem, setNewCheckItem] = useState("");
   const [notesTimer, setNotesTimer] = useState<ReturnType<
@@ -460,7 +462,6 @@ function ScholarshipDetailDrawer({
     }
   };
   const handleDelete = async () => {
-    if (!confirm(`Delete "${s.name}"? This cannot be undone.`)) return;
     try {
       await deleteScholarship(s.id);
       toast.success("Scholarship deleted", { description: s.name });
@@ -484,7 +485,7 @@ function ScholarshipDetailDrawer({
           </h2>
           <div className="flex items-center gap-1 shrink-0">
             <button
-              onClick={handleDelete}
+              onClick={() => setShowDeleteModal(true)}
               className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
             >
               <Trash2 className="size-4" />
@@ -770,6 +771,18 @@ function ScholarshipDetailDrawer({
           )}
         </div>
       </div>
+
+      {showDeleteModal && (
+        <ConfirmDeleteModal
+          itemName={s.name}
+          itemType="scholarship"
+          onConfirm={() => {
+            setShowDeleteModal(false);
+            handleDelete();
+          }}
+          onCancel={() => setShowDeleteModal(false)}
+        />
+      )}
     </>
   );
 }

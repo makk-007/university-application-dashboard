@@ -7,9 +7,12 @@ import {
   Eye,
   EyeOff,
   AlertCircle,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
 
 type Mode = "login" | "signup";
 
@@ -19,6 +22,7 @@ const inputCls =
 export function Auth() {
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
+  const { theme, toggleTheme } = useTheme();
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -61,6 +65,21 @@ export function Auth() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      {/* Theme toggle — top-right corner */}
+      <button
+        onClick={toggleTheme}
+        title={
+          theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+        }
+        className="fixed top-4 right-4 p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+      >
+        {theme === "dark" ? (
+          <Sun className="size-5" />
+        ) : (
+          <Moon className="size-5" />
+        )}
+      </button>
+
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-12 h-12 bg-primary rounded-xl mb-4">
