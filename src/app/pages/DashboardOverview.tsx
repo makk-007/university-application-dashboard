@@ -238,9 +238,10 @@ export function DashboardOverview() {
                 >
                   <AlertCircle className="size-4 text-orange-600 shrink-0" />
                   <span className="text-orange-800">
-                    ⚠️ <strong>{d.name}</strong> (
+                    <strong>{d.name}</strong> (
                     {d.type === "scholarship" ? "scholarship" : "university"})
-                    deadline in <strong>{getDaysUntil(d.deadline)} days</strong>
+                    deadline in{" "}
+                    <strong>{getDaysUntil(d.deadline)} days!!!</strong>
                   </span>
                 </div>
               ))}
@@ -438,7 +439,7 @@ export function DashboardOverview() {
                             </div>
                             <p className="text-xs text-gray-500 mt-0.5">
                               {days !== null && days >= 0
-                                ? `${days} days — ${new Date(item.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+                                ? `${days} days - ${new Date(item.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
                                 : "Past deadline"}
                             </p>
                             <div className="mt-1">
