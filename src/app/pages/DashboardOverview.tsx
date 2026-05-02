@@ -238,10 +238,9 @@ export function DashboardOverview() {
                 >
                   <AlertCircle className="size-4 text-orange-600 shrink-0" />
                   <span className="text-orange-800">
-                    <strong>{d.name}</strong> (
+                    ⚠️ <strong>{d.name}</strong> (
                     {d.type === "scholarship" ? "scholarship" : "university"})
-                    deadline in{" "}
-                    <strong>{getDaysUntil(d.deadline)} days!!!</strong>
+                    deadline in <strong>{getDaysUntil(d.deadline)} days</strong>
                   </span>
                 </div>
               ))}
@@ -342,21 +341,38 @@ export function DashboardOverview() {
                         data={pieData}
                         cx="50%"
                         cy="50%"
-                        outerRadius={100}
+                        innerRadius={68}
+                        outerRadius={108}
                         dataKey="value"
-                        labelLine={false}
-                        label={({ name, percent }) =>
-                          percent > 0.05
-                            ? `${name}: ${(percent * 100).toFixed(0)}%`
-                            : ""
-                        }
+                        paddingAngle={2}
                       >
                         {pieData.map((entry, i) => (
                           <Cell key={i} fill={entry.color} />
                         ))}
                       </Pie>
-                      <Tooltip />
+                      <Tooltip formatter={(value, name) => [value, name]} />
                       <Legend />
+                      {/* Centre label showing total */}
+                      <text
+                        x="50%"
+                        y="46%"
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        className="fill-foreground"
+                        style={{ fontSize: 26, fontWeight: 700 }}
+                      >
+                        {stats.total}
+                      </text>
+                      <text
+                        x="50%"
+                        y="54%"
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        className="fill-muted-foreground"
+                        style={{ fontSize: 12 }}
+                      >
+                        Total
+                      </text>
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
@@ -439,7 +455,7 @@ export function DashboardOverview() {
                             </div>
                             <p className="text-xs text-gray-500 mt-0.5">
                               {days !== null && days >= 0
-                                ? `${days} days - ${new Date(item.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+                                ? `${days} days — ${new Date(item.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
                                 : "Past deadline"}
                             </p>
                             <div className="mt-1">
