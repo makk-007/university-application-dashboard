@@ -88,7 +88,7 @@ export function Layout() {
               <p className="text-sm font-medium text-sidebar-foreground truncate">
                 {user.email}
               </p>
-              <p className="text-xs text-muted-foreground">Graduate Student</p>
+              <p className="text-xs text-muted-foreground"></p>
             </div>
             {/* Dark mode toggle */}
             <button
