@@ -65,7 +65,7 @@ export function Auth() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      {/* Theme toggle — top-right corner */}
+      {/* Theme toggle : top-right corner */}
       <button
         onClick={toggleTheme}
         title={

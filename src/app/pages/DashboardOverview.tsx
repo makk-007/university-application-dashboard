@@ -99,7 +99,7 @@ export function DashboardOverview() {
     { status: "Waitlisted", count: stats.waitlisted, fill: "#F59E0B" },
   ].filter((d) => d.count > 0);
 
-  // ── Upcoming deadlines — universities + scholarships (user's addition) ──────
+  // ── Upcoming deadlines : universities + scholarships (user's addition) ──────
   const upcomingDeadlines = useMemo(() => {
     const today = new Date();
     const uniDeadlines = universities
@@ -413,7 +413,7 @@ export function DashboardOverview() {
 
               {/* Right panel */}
               <div className="space-y-5">
-                {/* Upcoming Deadlines — universities + scholarships */}
+                {/* Upcoming Deadlines : universities + scholarships */}
                 <div className="bg-card rounded-xl border shadow-sm p-5">
                   <h2 className="text-base font-semibold text-card-foreground mb-1 flex items-center gap-2">
                     <AlertCircle className="size-4 text-orange-500" />
@@ -455,7 +455,7 @@ export function DashboardOverview() {
                             </div>
                             <p className="text-xs text-gray-500 mt-0.5">
                               {days !== null && days >= 0
-                                ? `${days} days — ${new Date(item.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+                                ? `${days} days : ${new Date(item.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
                                 : "Past deadline"}
                             </p>
                             <div className="mt-1">

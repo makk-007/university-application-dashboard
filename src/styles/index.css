@@ -1,7 +1,7 @@
 /*
-  Aptos — Microsoft's default sans-serif (Windows 11 / Microsoft 365).
+  Aptos : Microsoft's default sans-serif (Windows 11 / Microsoft 365).
   Not available on Google Fonts. Strategy:
-    1. Reference "Aptos" and "Aptos Display" directly — resolves on Windows 11
+    1. Reference "Aptos" and "Aptos Display" directly : resolves on Windows 11
        and any machine with Microsoft 365 installed.
     2. Fall back through ui-sans-serif → system-ui → Segoe UI (Windows) →
        SF Pro / -apple-system (macOS/iOS) → Roboto (Android) → Helvetica Neue

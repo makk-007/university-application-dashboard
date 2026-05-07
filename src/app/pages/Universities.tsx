@@ -942,7 +942,7 @@ export function Universities() {
                         <td className="px-6 py-4">
                           <div className="text-sm text-foreground">
                             {uni.currency}{" "}
-                            {uni.tuition?.toLocaleString() ?? "—"}
+                            {uni.tuition?.toLocaleString() ?? ":"}
                           </div>
                         </td>
                         <td className="px-6 py-4">
@@ -956,7 +956,7 @@ export function Universities() {
                                     year: "numeric",
                                   },
                                 )
-                              : "—"}
+                              : ":"}
                           </div>
                         </td>
                         <td className="px-6 py-4">

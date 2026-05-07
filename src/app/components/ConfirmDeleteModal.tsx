@@ -1,9 +1,9 @@
 import { AlertTriangle } from "lucide-react";
 
 interface ConfirmDeleteModalProps {
-  /** Name of the item being deleted — shown in the message */
+  /** Name of the item being deleted : shown in the message */
   itemName: string;
-  /** "university" | "scholarship" — used to build the description */
+  /** "university" | "scholarship" : used to build the description */
   itemType: string;
   onConfirm: () => void;
   onCancel: () => void;

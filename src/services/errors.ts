@@ -101,6 +101,6 @@ export function parseSupabaseError(error: any): string {
     return "Could not reach the server. Please check your connection and try again.";
   }
 
-  // ── Generic fallback — never expose the raw message ──────────────────────
+  // ── Generic fallback : never expose the raw message ──────────────────────
   return "Something went wrong. Please try again, or contact support if the problem persists.";
 }
