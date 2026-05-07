@@ -40,7 +40,7 @@
   --chart-5: oklch(0.769 0.188 70.08);
   --radius: 0.625rem;
 
-  /* Sidebar — accent tokens wired to the brand primary */
+  /* Sidebar : accent tokens wired to the brand primary */
   --sidebar: #f0f9fc;
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: #1c96c1;
@@ -88,7 +88,7 @@
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
 
-  /* Sidebar in dark — one step darker than card, brand-tinted accent */
+  /* Sidebar in dark : one step darker than card, brand-tinted accent */
   --sidebar: #0d1820;
   --sidebar-foreground: #e8f0f4;
   --sidebar-primary: #2aafd8;

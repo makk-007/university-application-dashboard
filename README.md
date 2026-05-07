@@ -1,4 +1,4 @@
-# Masters Application Tracker — Full Stack
+# Masters Application Tracker : Full Stack
 
 A full-stack application for tracking graduate school applications, scholarships, deadlines, and checklists.
 
@@ -11,7 +11,7 @@ Built with **React + TypeScript + Tailwind CSS** on the frontend and **Supabase*
 ### 1. Create a Supabase Project
 
 1. Go to [https://supabase.com](https://supabase.com) and create a free account
-2. Create a new project — choose a region close to you
+2. Create a new project : choose a region close to you
 3. Wait for the project to provision (~1 min)
 
 ### 2. Run the Database Schema
@@ -19,11 +19,12 @@ Built with **React + TypeScript + Tailwind CSS** on the frontend and **Supabase*
 1. In your Supabase dashboard, click **SQL Editor** in the left sidebar
 2. Open the file `supabase/schema.sql` from this project
 3. Paste the entire contents into the SQL editor
-4. Click **Run** — all tables, RLS policies, and indexes will be created
+4. Click **Run** : all tables, RLS policies, and indexes will be created
 
 ### 3. Configure Environment Variables
 
 1. Copy the example env file:
+
    ```bash
    cp .env.example .env
    ```
@@ -96,33 +97,33 @@ supabase/
 
 ## ✅ Features
 
-- **Authentication** — Email/password sign in & sign up via Supabase Auth
-- **Row Level Security** — Each user can only see and modify their own data
-- **Universities** — Add, view, filter (by region + status), and delete
-- **University Detail Panel** — Status update, autosave notes, requirements checklist with progress bar, linked scholarships
-- **Scholarships** — Add, view, manage eligible universities, requirements checklist
-- **Funding Overview** — See total potential funding per university converted to GHS
-- **Timeline** — Gantt-style view of all application windows with today indicator
-- **Deadline Alerts** — Dashboard alerts for openings within 30 days and deadlines within 15 days
-- **Status Tracking** — 8 statuses: Not Yet Open, Not Started, In Progress, Submitted, Accepted, Rejected, Waitlisted, Awarded
+- **Authentication** : Email/password sign in & sign up via Supabase Auth
+- **Row Level Security** : Each user can only see and modify their own data
+- **Universities** : Add, view, filter (by region + status), and delete
+- **University Detail Panel** : Status update, autosave notes, requirements checklist with progress bar, linked scholarships
+- **Scholarships** : Add, view, manage eligible universities, requirements checklist
+- **Funding Overview** : See total potential funding per university converted to GHS
+- **Timeline** : Gantt-style view of all application windows with today indicator
+- **Deadline Alerts** : Dashboard alerts for openings within 30 days and deadlines within 15 days
+- **Status Tracking** : 8 statuses: Not Yet Open, Not Started, In Progress, Submitted, Accepted, Rejected, Waitlisted, Awarded
 
 ---
 
 ## 🔐 Security
 
-All database tables have Row Level Security (RLS) enabled. Users can only read and write their own data. The Supabase anon key is safe to include in the frontend — it cannot bypass RLS policies.
+All database tables have Row Level Security (RLS) enabled. Users can only read and write their own data. The Supabase anon key is safe to include in the frontend : it cannot bypass RLS policies.
 
 ---
 
 ## 📦 Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | React 18 + TypeScript |
-| Styling | Tailwind CSS v4 |
+| Layer         | Technology                      |
+| ------------- | ------------------------------- |
+| Frontend      | React 18 + TypeScript           |
+| Styling       | Tailwind CSS v4                 |
 | UI Components | Radix UI / shadcn-ui primitives |
-| Charts | Recharts |
-| Routing | React Router v7 |
-| Backend | Supabase (PostgreSQL) |
-| Auth | Supabase Auth |
-| Build | Vite |
+| Charts        | Recharts                        |
+| Routing       | React Router v7                 |
+| Backend       | Supabase (PostgreSQL)           |
+| Auth          | Supabase Auth                   |
+| Build         | Vite                            |

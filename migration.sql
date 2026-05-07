@@ -1,5 +1,5 @@
 -- ============================================================
--- Masters Application Tracker — Data Migration SQL
+-- Masters Application Tracker : Data Migration SQL
 -- Generated from: universities.csv + application_state.json
 --                 + scholarships_state.json
 --

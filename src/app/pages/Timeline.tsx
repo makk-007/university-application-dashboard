@@ -458,7 +458,7 @@ export function Timeline() {
       </header>
 
       <div className="p-8 space-y-6">
-        {/* Tab switcher — same pattern as Scholarships page */}
+        {/* Tab switcher : same pattern as Scholarships page */}
         <div className="flex gap-1 bg-muted p-1 rounded-lg w-fit">
           <button
             onClick={() => setTab("applications")}
