@@ -70,12 +70,33 @@ function AddUniversityModal({
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const set = (k: string, v: any) => setForm((f) => ({ ...f, [k]: v }));
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const set = (k: string, v: any) => {
+    setForm((f) => ({ ...f, [k]: v }));
+    setFieldErrors((fe) => {
+      const n = { ...fe };
+      delete n[k];
+      return n;
+    });
+  };
+
+  const validate = () => {
+    const errs: Record<string, string> = {};
+    if (!form.name.trim()) errs.name = "University name is required";
+    if (form.applicationLink && !/^https?:\/\//i.test(form.applicationLink))
+      errs.applicationLink = "Link must start with http:// or https://";
+    if (form.startDate && form.deadline && form.deadline < form.startDate)
+      errs.deadline = "Deadline must be after the opening date";
+    if (form.tuition < 0) errs.tuition = "Tuition cannot be negative";
+    return errs;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim()) {
-      setError("University name is required");
+    setError(null);
+    const errs = validate();
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs);
       return;
     }
     setSaving(true);
@@ -138,12 +159,16 @@ function AddUniversityModal({
               University Name *
             </label>
             <input
-              required
               value={form.name}
               onChange={(e) => set("name", e.target.value)}
-              className={inputCls}
+              className={`${inputCls} ${fieldErrors.name ? "border-destructive focus-visible:border-destructive" : ""}`}
               placeholder="e.g. TU Delft"
             />
+            {fieldErrors.name && (
+              <p className="text-xs text-destructive mt-1">
+                {fieldErrors.name}
+              </p>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -187,8 +212,13 @@ function AddUniversityModal({
                 min={0}
                 value={form.tuition}
                 onChange={(e) => set("tuition", Number(e.target.value))}
-                className={inputCls}
+                className={`${inputCls} ${fieldErrors.tuition ? "border-destructive" : ""}`}
               />
+              {fieldErrors.tuition && (
+                <p className="text-xs text-destructive mt-1">
+                  {fieldErrors.tuition}
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-foreground mb-1.5">
@@ -225,21 +255,30 @@ function AddUniversityModal({
                 type="date"
                 value={form.deadline}
                 onChange={(e) => set("deadline", e.target.value)}
-                className={inputCls}
+                className={`${inputCls} ${fieldErrors.deadline ? "border-destructive" : ""}`}
               />
             </div>
           </div>
+          {fieldErrors.deadline && (
+            <p className="text-xs text-destructive -mt-2">
+              {fieldErrors.deadline}
+            </p>
+          )}
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5">
               Application Link
             </label>
             <input
-              type="url"
               value={form.applicationLink}
               onChange={(e) => set("applicationLink", e.target.value)}
               placeholder="https://..."
-              className={inputCls}
+              className={`${inputCls} ${fieldErrors.applicationLink ? "border-destructive focus-visible:border-destructive" : ""}`}
             />
+            {fieldErrors.applicationLink && (
+              <p className="text-xs text-destructive mt-1">
+                {fieldErrors.applicationLink}
+              </p>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5">

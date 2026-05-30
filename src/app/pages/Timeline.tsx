@@ -387,7 +387,8 @@ export function Timeline() {
     () =>
       [...filteredUniItems].sort(
         (a, b) =>
-          new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime(),
+          new Date(a.deadline ?? 0).getTime() -
+          new Date(b.deadline ?? 0).getTime(),
       ),
     [filteredUniItems],
   );
@@ -419,7 +420,8 @@ export function Timeline() {
     () =>
       [...filteredScholItems].sort(
         (a, b) =>
-          new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime(),
+          new Date(a.deadline ?? 0).getTime() -
+          new Date(b.deadline ?? 0).getTime(),
       ),
     [filteredScholItems],
   );
