@@ -1,13 +1,7 @@
 /*
-  Aptos : Microsoft's default sans-serif (Windows 11 / Microsoft 365).
-  Not available on Google Fonts. Strategy:
-    1. Reference "Aptos" and "Aptos Display" directly : resolves on Windows 11
-       and any machine with Microsoft 365 installed.
-    2. Fall back through ui-sans-serif → system-ui → Segoe UI (Windows) →
-       SF Pro / -apple-system (macOS/iOS) → Roboto (Android) → Helvetica Neue
-       → Arial for full cross-platform coverage.
+  Plus Jakarta Sans loaded from Google Fonts via fonts.css.
   The font-family stack is defined as --font-sans in theme.css and applied
-  globally to html and body, so no per-component changes are needed.
+  globally to html and body.
 */
 
 @import "./fonts.css";

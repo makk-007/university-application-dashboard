@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import {
   Plus,
   Search,
@@ -21,6 +22,7 @@ import {
 } from "../types";
 import { ConfirmDeleteModal } from "../components/ConfirmDeleteModal";
 import { StatusBadge } from "../components/StatusBadge";
+import { Skeleton } from "../components/ui/skeleton";
 import {
   statusConfig,
   ALL_STATUSES,
@@ -39,6 +41,11 @@ import {
 } from "../../services/scholarships";
 import { getUniversities } from "../../services/universities";
 import {
+  inputCls,
+  selectCls,
+  textareaCls,
+} from "../components/ui/input-classes";
+import {
   BarChart,
   Bar,
   XAxis,
@@ -55,9 +62,6 @@ const COVERAGE_OPTIONS = [
   "Stipend Only",
   "Tuition + Stipend",
 ] as const;
-const inputCls =
-  "flex h-9 w-full rounded-md border border-border bg-input-background px-3 py-1 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] transition-[color,box-shadow]";
-const selectCls = `${inputCls} appearance-none dark:bg-input dark:[color-scheme:dark]`;
 
 function AddScholarshipModal({
   onClose,
@@ -127,16 +131,23 @@ function AddScholarshipModal({
       className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="bg-card rounded-xl border shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 8 }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
+        className="bg-card rounded-xl border shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+      >
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <h2 className="text-lg font-semibold text-card-foreground">
             Add Scholarship
           </h2>
           <button
             onClick={onClose}
+            aria-label="Close dialog"
             className="text-muted-foreground hover:text-foreground p-1 rounded-md hover:bg-accent"
           >
-            <X className="size-4" />
+            <X className="size-4" aria-hidden="true" />
           </button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
@@ -285,7 +296,7 @@ function AddScholarshipModal({
               rows={3}
               value={form.notes}
               onChange={(e) => set("notes", e.target.value)}
-              className="flex w-full rounded-md border border-border bg-input-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] resize-none"
+              className={textareaCls}
             />
           </div>
           <div className="flex gap-3 pt-2">
@@ -305,7 +316,7 @@ function AddScholarshipModal({
             </button>
           </div>
         </form>
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -478,7 +489,13 @@ function ScholarshipDetailDrawer({
   return (
     <>
       <div className="fixed inset-0 bg-black/30 z-40" onClick={onClose} />
-      <div className="fixed right-0 top-0 h-full w-full max-w-2xl bg-card shadow-2xl z-50 flex flex-col overflow-hidden border-l border-border">
+      <motion.div
+        initial={{ x: "100%" }}
+        animate={{ x: 0 }}
+        exit={{ x: "100%" }}
+        transition={{ duration: 0.3, ease: "easeOut" }}
+        className="fixed right-0 top-0 h-full w-full max-w-2xl bg-card shadow-2xl z-50 flex flex-col overflow-hidden border-l border-border"
+      >
         <div className="sticky top-0 bg-card border-b border-border px-6 py-4 flex items-center justify-between">
           <h2 className="text-xl font-semibold text-card-foreground truncate pr-4">
             {s.name}
@@ -486,15 +503,17 @@ function ScholarshipDetailDrawer({
           <div className="flex items-center gap-1 shrink-0">
             <button
               onClick={() => setShowDeleteModal(true)}
+              aria-label="Delete scholarship"
               className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
             >
-              <Trash2 className="size-4" />
+              <Trash2 className="size-4" aria-hidden="true" />
             </button>
             <button
               onClick={onClose}
+              aria-label="Close panel"
               className="p-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors"
             >
-              <X className="size-4" />
+              <X className="size-4" aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -686,7 +705,7 @@ function ScholarshipDetailDrawer({
                     onClick={() => handleDeleteCheck(item.id)}
                     className="opacity-0 group-hover:opacity-100 p-1 hover:bg-destructive/10 hover:text-destructive rounded transition-all"
                   >
-                    <Trash2 className="size-3.5" />
+                    <Trash2 className="size-3.5" aria-hidden="true" />
                   </button>
                 </div>
               ))}
@@ -726,7 +745,7 @@ function ScholarshipDetailDrawer({
               value={notes}
               onChange={(e) => handleNotesChange(e.target.value)}
               placeholder="Add notes about this scholarship..."
-              className="flex w-full rounded-md border border-border bg-input-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] resize-none"
+              className={textareaCls}
             />
           </div>
 
@@ -770,7 +789,7 @@ function ScholarshipDetailDrawer({
             </div>
           )}
         </div>
-      </div>
+      </motion.div>
 
       {showDeleteModal && (
         <ConfirmDeleteModal
@@ -894,9 +913,10 @@ export function Scholarships() {
             </div>
             <button
               onClick={load}
+              aria-label="Refresh scholarships"
               className="p-2 text-muted-foreground hover:text-foreground bg-secondary hover:bg-secondary/80 rounded-lg transition-colors"
             >
-              <RefreshCw className="size-4" />
+              <RefreshCw className="size-4" aria-hidden="true" />
             </button>
             <button
               onClick={() => setShowAddModal(true)}
@@ -921,8 +941,23 @@ export function Scholarships() {
           ))}
         </div>
         {loading ? (
-          <div className="flex items-center justify-center py-24">
-            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div
+                key={i}
+                className="bg-card rounded-xl border shadow-sm overflow-hidden"
+              >
+                <div className="p-6 space-y-4">
+                  <div className="flex items-start justify-between">
+                    <Skeleton className="h-5 w-40" />
+                    <Skeleton className="h-5 w-20 rounded-md" />
+                  </div>
+                  <Skeleton className="h-6 w-28" />
+                  <Skeleton className="h-14 w-full rounded-lg" />
+                  <Skeleton className="h-2 w-full rounded-full" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : error ? (
           <div className="bg-card rounded-xl border p-12 text-center shadow-sm">
@@ -984,8 +1019,8 @@ export function Scholarships() {
                   const urgency = getDeadlineUrgency(schol.deadline ?? null);
                   const urgencyBorder = {
                     urgent: "border-l-destructive bg-destructive/5",
-                    warning: "border-l-orange-500 bg-orange-50",
-                    normal: "border-l-blue-500 bg-blue-50",
+                    warning: "border-l-orange-500 bg-orange-500/10",
+                    normal: "border-l-blue-500 bg-blue-500/10",
                   };
                   const eligNames = universities
                     .filter((u) => schol.eligibleUniversities.includes(u.id))
@@ -997,8 +1032,12 @@ export function Scholarships() {
                         100
                       : 0;
                   return (
-                    <div
+                    <motion.div
                       key={schol.id}
+                      initial={{ opacity: 0, y: 16 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 8 }}
+                      transition={{ duration: 0.25, ease: "easeOut" }}
                       onClick={() => setSelected(schol)}
                       className={`bg-card rounded-xl border shadow-sm hover:shadow-md transition-shadow overflow-hidden cursor-pointer ${selected?.id === schol.id ? "ring-2 ring-ring" : ""}`}
                     >
@@ -1086,7 +1125,7 @@ export function Scholarships() {
                           View Details →
                         </button>
                       </div>
-                    </div>
+                    </motion.div>
                   );
                 })}
               </div>
@@ -1174,22 +1213,28 @@ export function Scholarships() {
           </div>
         )}
       </div>
-      {showAddModal && (
-        <AddScholarshipModal
-          onClose={() => setShowAddModal(false)}
-          onSaved={load}
-          universities={universities}
-        />
-      )}
-      {selected && (
-        <ScholarshipDetailDrawer
-          scholarship={selected}
-          universities={universities}
-          onClose={() => setSelected(null)}
-          onUpdated={handleUpdated}
-          onDeleted={handleDeleted}
-        />
-      )}
+      <AnimatePresence>
+        {showAddModal && (
+          <AddScholarshipModal
+            key="add-modal"
+            onClose={() => setShowAddModal(false)}
+            onSaved={load}
+            universities={universities}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {selected && (
+          <ScholarshipDetailDrawer
+            key={selected.id}
+            scholarship={selected}
+            universities={universities}
+            onClose={() => setSelected(null)}
+            onUpdated={handleUpdated}
+            onDeleted={handleDeleted}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
