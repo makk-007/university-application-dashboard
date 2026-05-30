@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import {
   Plus,
   Search,
@@ -15,12 +16,19 @@ import { toast } from "sonner";
 import { University, ApplicationStatus } from "../types";
 import { ConfirmDeleteModal } from "../components/ConfirmDeleteModal";
 import { StatusBadge } from "../components/StatusBadge";
+import { Skeleton } from "../components/ui/skeleton";
 import {
   statusConfig,
   ALL_STATUSES,
+  UNI_STATUSES,
   getDaysUntil,
   getDeadlineUrgency,
 } from "../utils/statusConfig";
+import {
+  inputCls,
+  selectCls,
+  textareaCls,
+} from "../components/ui/input-classes";
 import {
   getUniversities,
   createUniversity,
@@ -41,10 +49,6 @@ const REGIONS = [
   "Middle East",
 ];
 const CURRENCIES = ["USD", "EUR", "GBP", "SEK", "GHS"];
-
-const inputCls =
-  "flex h-9 w-full rounded-md border border-border bg-input-background px-3 py-1 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] transition-[color,box-shadow] disabled:opacity-50";
-const selectCls = `${inputCls} appearance-none dark:bg-input dark:[color-scheme:dark]`;
 
 function AddUniversityModal({
   onClose,
@@ -103,22 +107,29 @@ function AddUniversityModal({
       className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="bg-card rounded-xl border shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 8 }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
+        className="bg-card rounded-xl border shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+      >
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <h2 className="text-lg font-semibold text-card-foreground">
             Add University
           </h2>
           <button
             onClick={onClose}
+            aria-label="Close dialog"
             className="text-muted-foreground hover:text-foreground p-1 rounded-md hover:bg-accent transition-colors"
           >
-            <X className="size-4" />
+            <X className="size-4" aria-hidden="true" />
           </button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
             <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2">
-              <AlertCircle className="size-4 shrink-0" />
+              <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
               {error}
             </div>
           )}
@@ -158,7 +169,7 @@ function AddUniversityModal({
                 onChange={(e) => set("status", e.target.value)}
                 className={selectCls}
               >
-                {ALL_STATUSES.map((s) => (
+                {UNI_STATUSES.map((s) => (
                   <option key={s} value={s}>
                     {statusConfig[s].label}
                   </option>
@@ -238,7 +249,7 @@ function AddUniversityModal({
               rows={3}
               value={form.notes}
               onChange={(e) => set("notes", e.target.value)}
-              className="flex w-full rounded-md border border-border bg-input-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] resize-none"
+              className={textareaCls}
             />
           </div>
           <div className="flex gap-3 pt-2">
@@ -258,7 +269,7 @@ function AddUniversityModal({
             </button>
           </div>
         </form>
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -424,7 +435,13 @@ function UniversityDetailDrawer({
   return (
     <>
       <div className="fixed inset-0 bg-black/30 z-40" onClick={onClose} />
-      <div className="fixed right-0 top-0 h-full w-full max-w-2xl bg-card shadow-2xl z-50 flex flex-col overflow-hidden border-l border-border">
+      <motion.div
+        initial={{ x: "100%" }}
+        animate={{ x: 0 }}
+        exit={{ x: "100%" }}
+        transition={{ duration: 0.3, ease: "easeOut" }}
+        className="fixed right-0 top-0 h-full w-full max-w-2xl bg-card shadow-2xl z-50 flex flex-col overflow-hidden border-l border-border"
+      >
         <div className="sticky top-0 bg-card border-b border-border px-6 py-4 flex items-center justify-between">
           <h2 className="text-xl font-semibold text-card-foreground truncate pr-4">
             {uni.name}
@@ -432,15 +449,17 @@ function UniversityDetailDrawer({
           <div className="flex items-center gap-1 shrink-0">
             <button
               onClick={() => setShowDeleteModal(true)}
+              aria-label="Delete university"
               className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
             >
-              <Trash2 className="size-4" />
+              <Trash2 className="size-4" aria-hidden="true" />
             </button>
             <button
               onClick={onClose}
+              aria-label="Close panel"
               className="p-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors"
             >
-              <X className="size-4" />
+              <X className="size-4" aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -566,7 +585,7 @@ function UniversityDetailDrawer({
               Application Status
             </label>
             <div className="flex flex-wrap gap-2">
-              {ALL_STATUSES.map((status) => {
+              {UNI_STATUSES.map((status) => {
                 const config = statusConfig[status];
                 const isSelected = uni.status === status;
                 return (
@@ -628,7 +647,7 @@ function UniversityDetailDrawer({
                     onClick={() => handleDeleteCheck(item.id)}
                     className="opacity-0 group-hover:opacity-100 p-1 hover:bg-destructive/10 hover:text-destructive rounded transition-all"
                   >
-                    <Trash2 className="size-3.5" />
+                    <Trash2 className="size-3.5" aria-hidden="true" />
                   </button>
                 </div>
               ))}
@@ -668,7 +687,7 @@ function UniversityDetailDrawer({
               onChange={(e) => handleNotesChange(e.target.value)}
               placeholder="Add notes about this application..."
               rows={4}
-              className="flex w-full rounded-md border border-border bg-input-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] resize-none"
+              className={textareaCls}
             />
           </div>
 
@@ -710,7 +729,7 @@ function UniversityDetailDrawer({
             </div>
           )}
         </div>
-      </div>
+      </motion.div>
 
       {showDeleteModal && (
         <ConfirmDeleteModal
@@ -804,9 +823,10 @@ export function Universities() {
             </div>
             <button
               onClick={load}
+              aria-label="Refresh universities"
               className="p-2 text-muted-foreground hover:text-foreground bg-secondary hover:bg-secondary/80 rounded-lg transition-colors"
             >
-              <RefreshCw className="size-4" />
+              <RefreshCw className="size-4" aria-hidden="true" />
             </button>
             <button
               onClick={() => setShowAddModal(true)}
@@ -869,8 +889,54 @@ export function Universities() {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-24">
-            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-muted/50 border-b border-border">
+                  <tr>
+                    {[
+                      "University",
+                      "Region",
+                      "Status",
+                      "Tuition Fee",
+                      "Deadline",
+                      "Progress",
+                    ].map((h) => (
+                      <th
+                        key={h}
+                        className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="bg-card divide-y divide-border">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <tr key={i}>
+                      <td className="px-6 py-4">
+                        <Skeleton className="h-4 w-40" />
+                      </td>
+                      <td className="px-6 py-4">
+                        <Skeleton className="h-4 w-24" />
+                      </td>
+                      <td className="px-6 py-4">
+                        <Skeleton className="h-6 w-20 rounded-md" />
+                      </td>
+                      <td className="px-6 py-4">
+                        <Skeleton className="h-4 w-20" />
+                      </td>
+                      <td className="px-6 py-4">
+                        <Skeleton className="h-4 w-24" />
+                      </td>
+                      <td className="px-6 py-4">
+                        <Skeleton className="h-2 w-24 rounded-full" />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         ) : error ? (
           <div className="bg-card rounded-xl border p-12 text-center shadow-sm">
@@ -921,8 +987,12 @@ export function Universities() {
                       normal: "text-muted-foreground",
                     };
                     return (
-                      <tr
+                      <motion.tr
                         key={uni.id}
+                        initial={{ opacity: 0, x: -8 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -8 }}
+                        transition={{ duration: 0.2 }}
                         onClick={() => setSelectedUni(uni)}
                         className={`hover:bg-muted/30 cursor-pointer transition-colors ${selectedUni?.id === uni.id ? "bg-muted/40" : ""}`}
                       >
@@ -972,7 +1042,7 @@ export function Universities() {
                             </span>
                           </div>
                         </td>
-                      </tr>
+                      </motion.tr>
                     );
                   })}
                 </tbody>
@@ -991,20 +1061,26 @@ export function Universities() {
         )}
       </div>
 
-      {showAddModal && (
-        <AddUniversityModal
-          onClose={() => setShowAddModal(false)}
-          onSaved={load}
-        />
-      )}
-      {selectedUni && (
-        <UniversityDetailDrawer
-          university={selectedUni}
-          onClose={() => setSelectedUni(null)}
-          onUpdated={handleUpdated}
-          onDeleted={handleDeleted}
-        />
-      )}
+      <AnimatePresence>
+        {showAddModal && (
+          <AddUniversityModal
+            key="add-modal"
+            onClose={() => setShowAddModal(false)}
+            onSaved={load}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {selectedUni && (
+          <UniversityDetailDrawer
+            key={selectedUni.id}
+            university={selectedUni}
+            onClose={() => setSelectedUni(null)}
+            onUpdated={handleUpdated}
+            onDeleted={handleDeleted}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

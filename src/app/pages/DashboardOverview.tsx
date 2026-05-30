@@ -12,9 +12,11 @@ import {
   TrendingUp,
   DollarSign,
 } from "lucide-react";
+import { motion } from "motion/react";
 import { toast } from "sonner";
 import { KPICard } from "../components/KPICard";
 import { StatusBadge } from "../components/StatusBadge";
+import { Skeleton } from "../components/ui/skeleton";
 import {
   PieChart,
   Pie,
@@ -166,8 +168,55 @@ export function DashboardOverview() {
 
   if (loading)
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-background">
+        <header className="bg-card border-b border-border px-8 py-6">
+          <Skeleton className="h-8 w-56 mb-2" />
+          <Skeleton className="h-4 w-80" />
+        </header>
+        <div className="p-8 space-y-8">
+          <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div
+                key={i}
+                className="bg-card rounded-xl border p-5 shadow-sm space-y-3"
+              >
+                <div className="flex items-center justify-between">
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-8 w-8 rounded-lg" />
+                </div>
+                <Skeleton className="h-9 w-12" />
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+              <div className="bg-card rounded-xl border shadow-sm p-6">
+                <Skeleton className="h-6 w-48 mb-2" />
+                <Skeleton className="h-4 w-64 mb-6" />
+                <Skeleton className="h-[280px] w-full rounded-lg" />
+              </div>
+              <div className="bg-card rounded-xl border shadow-sm p-6">
+                <Skeleton className="h-6 w-40 mb-2" />
+                <Skeleton className="h-4 w-56 mb-6" />
+                <Skeleton className="h-[220px] w-full rounded-lg" />
+              </div>
+            </div>
+            <div className="space-y-5">
+              <div className="bg-card rounded-xl border shadow-sm p-5 space-y-3">
+                <Skeleton className="h-5 w-40 mb-4" />
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-16 w-full rounded-lg" />
+                ))}
+              </div>
+              <div className="bg-card rounded-xl border shadow-sm p-5 space-y-3">
+                <Skeleton className="h-5 w-36 mb-4" />
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-5 w-full" />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
 
@@ -220,10 +269,13 @@ export function DashboardOverview() {
             {openingSoon.map((u) => (
               <div
                 key={u.id}
-                className="flex items-center gap-3 bg-sky-50 border border-sky-200 rounded-lg px-4 py-3 text-sm"
+                className="flex items-center gap-3 bg-sky-500/10 border border-sky-500/20 rounded-lg px-4 py-3 text-sm"
               >
-                <AlertCircle className="size-4 text-sky-600 shrink-0" />
-                <span className="text-sky-800">
+                <AlertCircle
+                  className="size-4 text-sky-600 dark:text-sky-400 shrink-0"
+                  aria-hidden="true"
+                />
+                <span className="text-sky-700 dark:text-sky-300">
                   📅 <strong>{u.name}</strong> opens in{" "}
                   <strong>{getDaysUntil(u.startDate)} days</strong>
                 </span>
@@ -234,10 +286,13 @@ export function DashboardOverview() {
               .map((d) => (
                 <div
                   key={d.id}
-                  className="flex items-center gap-3 bg-orange-50 border border-orange-200 rounded-lg px-4 py-3 text-sm"
+                  className="flex items-center gap-3 bg-orange-500/10 border border-orange-500/20 rounded-lg px-4 py-3 text-sm"
                 >
-                  <AlertCircle className="size-4 text-orange-600 shrink-0" />
-                  <span className="text-orange-800">
+                  <AlertCircle
+                    className="size-4 text-orange-600 dark:text-orange-400 shrink-0"
+                    aria-hidden="true"
+                  />
+                  <span className="text-orange-700 dark:text-orange-300">
                     ⚠️ <strong>{d.name}</strong> (
                     {d.type === "scholarship" ? "scholarship" : "university"})
                     deadline in <strong>{getDaysUntil(d.deadline)} days</strong>
@@ -269,6 +324,7 @@ export function DashboardOverview() {
             <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-4">
               <KPICard
                 title="Total"
+                delay={0}
                 value={stats.total}
                 icon={GraduationCap}
                 color="text-foreground"
@@ -276,13 +332,15 @@ export function DashboardOverview() {
               />
               <KPICard
                 title="Not Yet Open"
+                delay={0.05}
                 value={stats.notYetOpen}
                 icon={Clock}
                 color="text-sky-600"
-                bgColor="bg-sky-50"
+                bgColor="bg-sky-500/10"
               />
               <KPICard
                 title="Not Started"
+                delay={0.1}
                 value={stats.notStarted}
                 icon={FileText}
                 color="text-muted-foreground"
@@ -290,27 +348,31 @@ export function DashboardOverview() {
               />
               <KPICard
                 title="In Progress"
+                delay={0.15}
                 value={stats.inProgress}
                 icon={Loader2}
                 color="text-blue-600"
-                bgColor="bg-blue-50"
+                bgColor="bg-blue-500/10"
               />
               <KPICard
                 title="Submitted"
+                delay={0.2}
                 value={stats.submitted}
                 icon={Send}
                 color="text-purple-600"
-                bgColor="bg-purple-50"
+                bgColor="bg-purple-500/10"
               />
               <KPICard
                 title="Accepted"
+                delay={0.25}
                 value={stats.accepted}
                 icon={CheckCircle2}
                 color="text-green-600"
-                bgColor="bg-green-50"
+                bgColor="bg-green-500/10"
               />
               <KPICard
                 title="Rejected"
+                delay={0.3}
                 value={stats.rejected}
                 icon={XCircle}
                 color="text-destructive"
@@ -318,14 +380,20 @@ export function DashboardOverview() {
               />
               <KPICard
                 title="Waitlisted"
+                delay={0.35}
                 value={stats.waitlisted}
                 icon={Clock}
                 color="text-orange-600"
-                bgColor="bg-orange-50"
+                bgColor="bg-orange-500/10"
               />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.45, ease: "easeOut" }}
+              className="grid grid-cols-1 lg:grid-cols-3 gap-6"
+            >
               {/* Charts */}
               <div className="lg:col-span-2 space-y-6">
                 <div className="bg-card rounded-xl border shadow-sm p-6">
@@ -431,9 +499,9 @@ export function DashboardOverview() {
                       {upcomingDeadlines.map((item) => {
                         const urgency = getDeadlineUrgency(item.deadline);
                         const colors = {
-                          urgent: "border-l-red-500 bg-red-50",
-                          warning: "border-l-orange-400 bg-orange-50",
-                          normal: "border-l-blue-400 bg-blue-50",
+                          urgent: "border-l-destructive bg-destructive/5",
+                          warning: "border-l-orange-400 bg-orange-500/10",
+                          normal: "border-l-blue-400 bg-blue-500/10",
                         };
                         const days = getDaysUntil(item.deadline);
                         return (
@@ -442,18 +510,18 @@ export function DashboardOverview() {
                             className={`border-l-4 ${colors[urgency]} p-3 rounded-r-lg`}
                           >
                             <div className="flex items-start justify-between gap-2">
-                              <p className="text-sm font-medium text-gray-900 truncate">
+                              <p className="text-sm font-medium text-foreground truncate">
                                 {item.name}
                               </p>
                               <span
-                                className={`text-xs px-1.5 py-0.5 rounded shrink-0 ${item.type === "scholarship" ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"}`}
+                                className={`text-xs px-1.5 py-0.5 rounded shrink-0 ${item.type === "scholarship" ? "bg-purple-500/15 text-purple-700 dark:text-purple-300" : "bg-blue-500/15 text-blue-700 dark:text-blue-300"}`}
                               >
                                 {item.type === "scholarship"
-                                  ? "🎓 Scholarship"
-                                  : "🏫 University"}
+                                  ? "Scholarship"
+                                  : "University"}
                               </span>
                             </div>
-                            <p className="text-xs text-gray-500 mt-0.5">
+                            <p className="text-xs text-muted-foreground mt-0.5">
                               {days !== null && days >= 0
                                 ? `${days} days : ${new Date(item.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
                                 : "Past deadline"}
@@ -522,7 +590,7 @@ export function DashboardOverview() {
                   </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
           </>
         )}
       </div>

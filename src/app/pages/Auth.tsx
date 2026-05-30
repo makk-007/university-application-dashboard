@@ -105,8 +105,10 @@ export function Auth() {
             </div>
           )}
           {success && (
-            <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3 mb-5">
-              <p className="text-sm text-green-700">{success}</p>
+            <div className="bg-green-500/10 border border-green-500/20 rounded-lg px-4 py-3 mb-5">
+              <p className="text-sm text-green-700 dark:text-green-300">
+                {success}
+              </p>
             </div>
           )}
 

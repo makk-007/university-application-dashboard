@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { motion } from "motion/react";
 import { RefreshCw, AlertCircle, Calendar } from "lucide-react";
+import { Skeleton } from "../components/ui/skeleton";
 import { toast } from "sonner";
 import { University, Scholarship } from "../types";
 import { StatusBadge } from "../components/StatusBadge";
@@ -144,7 +146,13 @@ function TimelineView({
               statusConfig[item.status as keyof typeof statusConfig];
 
             return (
-              <div key={item.id} className="relative">
+              <motion.div
+                key={item.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25, delay: 0.05 }}
+                className="relative"
+              >
                 <div className="flex items-center gap-3 mb-2">
                   <span className="text-sm font-medium text-foreground min-w-48 truncate">
                     {item.name}
@@ -158,11 +166,13 @@ function TimelineView({
                   )}
                 </div>
                 <div className="relative h-8 bg-muted rounded-lg overflow-hidden">
-                  <div
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${widthPct}%` }}
+                    transition={{ duration: 0.6, delay: 0.1, ease: "easeOut" }}
                     className="absolute h-full rounded-lg flex items-center px-2 overflow-hidden"
                     style={{
                       left: `${openPct}%`,
-                      width: `${widthPct}%`,
                       backgroundColor: color + "33",
                       border: `2px solid ${color}`,
                     }}
@@ -178,7 +188,7 @@ function TimelineView({
                         day: "numeric",
                       })}
                     </span>
-                  </div>
+                  </motion.div>
                   {todayPercent >= 0 && todayPercent <= 100 && (
                     <div
                       className="absolute top-0 bottom-0 w-0.5 bg-destructive z-10"
@@ -188,7 +198,7 @@ function TimelineView({
                     </div>
                   )}
                 </div>
-              </div>
+              </motion.div>
             );
           })}
         </div>
@@ -475,8 +485,31 @@ export function Timeline() {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-24">
-            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          <div className="space-y-6">
+            <div className="bg-card rounded-xl border shadow-sm p-6 space-y-5">
+              <Skeleton className="h-6 w-56 mb-2" />
+              <Skeleton className="h-4 w-72 mb-6" />
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="space-y-2">
+                  <Skeleton className="h-4 w-48" />
+                  <Skeleton className="h-8 w-full rounded-lg" />
+                </div>
+              ))}
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-card rounded-xl border shadow-sm p-5 space-y-3">
+                <Skeleton className="h-5 w-36 mb-4" />
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-14 w-full rounded-lg" />
+                ))}
+              </div>
+              <div className="bg-card rounded-xl border shadow-sm p-5 space-y-3">
+                <Skeleton className="h-5 w-36 mb-4" />
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-14 w-full rounded-lg" />
+                ))}
+              </div>
+            </div>
           </div>
         ) : error ? (
           <div className="bg-card rounded-xl border p-12 text-center shadow-sm">

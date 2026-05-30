@@ -93,6 +93,11 @@ export function Layout() {
             {/* Dark mode toggle */}
             <button
               onClick={toggleTheme}
+              aria-label={
+                theme === "dark"
+                  ? "Switch to light mode"
+                  : "Switch to dark mode"
+              }
               title={
                 theme === "dark"
                   ? "Switch to light mode"
@@ -101,9 +106,9 @@ export function Layout() {
               className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded"
             >
               {theme === "dark" ? (
-                <Sun className="size-4" />
+                <Sun className="size-4" aria-hidden="true" />
               ) : (
-                <Moon className="size-4" />
+                <Moon className="size-4" aria-hidden="true" />
               )}
             </button>
             {/* Sign out */}
@@ -112,10 +117,11 @@ export function Layout() {
                 await signOut();
                 toast.success("Signed out successfully");
               }}
+              aria-label="Sign out"
               title="Sign out"
               className="text-muted-foreground hover:text-destructive transition-colors p-1 rounded"
             >
-              <LogOut className="size-4" />
+              <LogOut className="size-4" aria-hidden="true" />
             </button>
           </div>
         </div>
