@@ -86,7 +86,15 @@ function AddScholarshipModal({
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const set = (k: string, v: any) => setForm((f) => ({ ...f, [k]: v }));
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const set = (k: string, v: any) => {
+    setForm((f) => ({ ...f, [k]: v }));
+    setFieldErrors((fe) => {
+      const n = { ...fe };
+      delete n[k];
+      return n;
+    });
+  };
   const toggleUni = (id: string) =>
     setForm((f) => ({
       ...f,
@@ -95,10 +103,23 @@ function AddScholarshipModal({
         : [...f.eligibleUniversities, id],
     }));
 
+  const validate = () => {
+    const errs: Record<string, string> = {};
+    if (!form.name.trim()) errs.name = "Scholarship name is required";
+    if (form.link && !/^https?:\/\//i.test(form.link))
+      errs.link = "Link must start with http:// or https://";
+    if (form.startDate && form.deadline && form.deadline < form.startDate)
+      errs.deadline = "Deadline must be after the opening date";
+    if (form.amount < 0) errs.amount = "Amount cannot be negative";
+    return errs;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim()) {
-      setError("Scholarship name is required");
+    setError(null);
+    const errs = validate();
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs);
       return;
     }
     setSaving(true);
@@ -162,12 +183,16 @@ function AddScholarshipModal({
               Scholarship Name *
             </label>
             <input
-              required
               value={form.name}
               onChange={(e) => set("name", e.target.value)}
-              className={inputCls}
+              className={`${inputCls} ${fieldErrors.name ? "border-destructive focus-visible:border-destructive" : ""}`}
               placeholder="e.g. Mastercard Foundation Scholarship"
             />
+            {fieldErrors.name && (
+              <p className="text-xs text-destructive mt-1">
+                {fieldErrors.name}
+              </p>
+            )}
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div>
@@ -179,8 +204,13 @@ function AddScholarshipModal({
                 min={0}
                 value={form.amount}
                 onChange={(e) => set("amount", Number(e.target.value))}
-                className={inputCls}
+                className={`${inputCls} ${fieldErrors.amount ? "border-destructive" : ""}`}
               />
+              {fieldErrors.amount && (
+                <p className="text-xs text-destructive mt-1">
+                  {fieldErrors.amount}
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-foreground mb-1.5">
@@ -247,10 +277,15 @@ function AddScholarshipModal({
                 type="date"
                 value={form.deadline}
                 onChange={(e) => set("deadline", e.target.value)}
-                className={inputCls}
+                className={`${inputCls} ${fieldErrors.deadline ? "border-destructive" : ""}`}
               />
             </div>
           </div>
+          {fieldErrors.deadline && (
+            <p className="text-xs text-destructive -mt-2">
+              {fieldErrors.deadline}
+            </p>
+          )}
           {universities.length > 0 && (
             <div>
               <label className="block text-sm font-medium text-foreground mb-1.5">
@@ -281,12 +316,16 @@ function AddScholarshipModal({
               Scholarship Link
             </label>
             <input
-              type="url"
               value={form.link}
               onChange={(e) => set("link", e.target.value)}
               placeholder="https://..."
-              className={inputCls}
+              className={`${inputCls} ${fieldErrors.link ? "border-destructive focus-visible:border-destructive" : ""}`}
             />
+            {fieldErrors.link && (
+              <p className="text-xs text-destructive mt-1">
+                {fieldErrors.link}
+              </p>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5">
