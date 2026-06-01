@@ -157,7 +157,7 @@ function AddScholarshipModal({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 8 }}
         transition={{ duration: 0.2, ease: "easeOut" }}
-        className="bg-card rounded-xl border shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+        className="bg-card rounded-xl border shadow-xl w-full sm:max-w-lg sm:max-h-[90vh] h-full sm:h-auto overflow-y-auto"
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <h2 className="text-lg font-semibold text-card-foreground">
@@ -533,7 +533,7 @@ function ScholarshipDetailDrawer({
         animate={{ x: 0 }}
         exit={{ x: "100%" }}
         transition={{ duration: 0.3, ease: "easeOut" }}
-        className="fixed right-0 top-0 h-full w-full max-w-2xl bg-card shadow-2xl z-50 flex flex-col overflow-hidden border-l border-border"
+        className="fixed right-0 top-0 h-full w-full sm:max-w-2xl bg-card shadow-2xl z-50 flex flex-col overflow-hidden border-l border-border"
       >
         <div className="sticky top-0 bg-card border-b border-border px-6 py-4 flex items-center justify-between">
           <h2 className="text-xl font-semibold text-card-foreground truncate pr-4">
@@ -930,8 +930,8 @@ export function Scholarships() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-border px-8 py-6">
-        <div className="flex items-center justify-between">
+      <header className="bg-card border-b border-border px-4 sm:px-8 py-4 sm:py-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold text-foreground">
               Scholarships
@@ -967,7 +967,7 @@ export function Scholarships() {
           </div>
         </div>
       </header>
-      <div className="p-8 space-y-6">
+      <div className="p-4 sm:p-8 space-y-5 sm:space-y-6">
         <div className="flex gap-1 bg-muted p-1 rounded-lg w-fit">
           {(["list", "funding"] as const).map((tab) => (
             <button

@@ -133,7 +133,7 @@ function AddUniversityModal({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 8 }}
         transition={{ duration: 0.2, ease: "easeOut" }}
-        className="bg-card rounded-xl border shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+        className="bg-card rounded-xl border shadow-xl w-full sm:max-w-lg sm:max-h-[90vh] h-full sm:h-auto overflow-y-auto"
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <h2 className="text-lg font-semibold text-card-foreground">
@@ -479,7 +479,7 @@ function UniversityDetailDrawer({
         animate={{ x: 0 }}
         exit={{ x: "100%" }}
         transition={{ duration: 0.3, ease: "easeOut" }}
-        className="fixed right-0 top-0 h-full w-full max-w-2xl bg-card shadow-2xl z-50 flex flex-col overflow-hidden border-l border-border"
+        className="fixed right-0 top-0 h-full w-full sm:max-w-2xl bg-card shadow-2xl z-50 flex flex-col overflow-hidden border-l border-border"
       >
         <div className="sticky top-0 bg-card border-b border-border px-6 py-4 flex items-center justify-between">
           <h2 className="text-xl font-semibold text-card-foreground truncate pr-4">
@@ -846,8 +846,8 @@ export function Universities() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-border px-8 py-6">
-        <div className="flex items-center justify-between">
+      <header className="bg-card border-b border-border px-4 sm:px-8 py-4 sm:py-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold text-foreground">
               Universities
@@ -856,8 +856,8 @@ export function Universities() {
               Manage your university applications and track progress
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="text-sm text-muted-foreground">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="text-sm text-muted-foreground hidden sm:block">
               {filtered.length} of {universities.length} universities
             </div>
             <button
@@ -878,9 +878,9 @@ export function Universities() {
         </div>
       </header>
 
-      <div className="p-8">
-        <div className="bg-card rounded-xl border p-4 mb-6 shadow-sm">
-          <div className="flex flex-wrap gap-4">
+      <div className="p-4 sm:p-8">
+        <div className="bg-card rounded-xl border p-3 sm:p-4 mb-4 sm:mb-6 shadow-sm">
+          <div className="flex flex-wrap gap-3">
             <div className="flex-1 min-w-64">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
@@ -927,8 +927,8 @@ export function Universities() {
           </div>
         </div>
 
-        {loading ? (
-          <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+        {loading && (
+          <div className="bg-card rounded-xl border shadow-sm overflow-hidden hidden sm:block">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-muted/50 border-b border-border">
@@ -977,7 +977,8 @@ export function Universities() {
               </table>
             </div>
           </div>
-        ) : error ? (
+        )}
+        {!loading && error && (
           <div className="bg-card rounded-xl border p-12 text-center shadow-sm">
             <AlertCircle className="size-8 text-destructive mx-auto mb-3" />
             <p className="text-sm text-muted-foreground mb-4">{error}</p>
@@ -988,115 +989,194 @@ export function Universities() {
               Retry
             </button>
           </div>
-        ) : (
-          <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-muted/50 border-b border-border">
-                  <tr>
-                    {[
-                      "University",
-                      "Region",
-                      "Status",
-                      "Tuition Fee",
-                      "Deadline",
-                      "Progress",
-                    ].map((h) => (
-                      <th
-                        key={h}
-                        className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
-                      >
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="bg-card divide-y divide-border">
-                  {filtered.map((uni) => {
-                    const progress =
-                      uni.checklist.length > 0
-                        ? (uni.checklist.filter((c) => c.completed).length /
-                            uni.checklist.length) *
-                          100
-                        : 0;
-                    const urgency = getDeadlineUrgency(uni.deadline);
-                    const urgencyColors = {
-                      urgent: "text-destructive font-semibold",
-                      warning: "text-orange-600 font-medium",
-                      normal: "text-muted-foreground",
-                    };
-                    return (
-                      <motion.tr
-                        key={uni.id}
-                        initial={{ opacity: 0, x: -8 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -8 }}
-                        transition={{ duration: 0.2 }}
-                        onClick={() => setSelectedUni(uni)}
-                        className={`hover:bg-muted/30 cursor-pointer transition-colors ${selectedUni?.id === uni.id ? "bg-muted/40" : ""}`}
-                      >
-                        <td className="px-6 py-4">
-                          <div className="font-medium text-foreground">
-                            {uni.name}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm text-muted-foreground">
-                            {uni.region}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <StatusBadge status={uni.status} />
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm text-foreground">
-                            {uni.currency}{" "}
-                            {uni.tuition?.toLocaleString() ?? ":"}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className={`text-sm ${urgencyColors[urgency]}`}>
-                            {uni.deadline
-                              ? new Date(uni.deadline).toLocaleDateString(
-                                  "en-US",
-                                  {
-                                    month: "short",
-                                    day: "numeric",
-                                    year: "numeric",
-                                  },
-                                )
-                              : ":"}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1 bg-muted rounded-full h-2 max-w-24">
-                              <div
-                                className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full"
-                                style={{ width: `${progress}%` }}
-                              />
+        )}
+        {!loading && !error && (
+          <>
+            <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-muted/50 border-b border-border">
+                    <tr>
+                      {[
+                        "University",
+                        "Region",
+                        "Status",
+                        "Tuition Fee",
+                        "Deadline",
+                        "Progress",
+                      ].map((h) => (
+                        <th
+                          key={h}
+                          className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                        >
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="bg-card divide-y divide-border">
+                    {filtered.map((uni) => {
+                      const progress =
+                        uni.checklist.length > 0
+                          ? (uni.checklist.filter((c) => c.completed).length /
+                              uni.checklist.length) *
+                            100
+                          : 0;
+                      const urgency = getDeadlineUrgency(uni.deadline);
+                      const urgencyColors = {
+                        urgent: "text-destructive font-semibold",
+                        warning: "text-orange-600 font-medium",
+                        normal: "text-muted-foreground",
+                      };
+                      return (
+                        <motion.tr
+                          key={uni.id}
+                          initial={{ opacity: 0, x: -8 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: -8 }}
+                          transition={{ duration: 0.2 }}
+                          onClick={() => setSelectedUni(uni)}
+                          className={`hover:bg-muted/30 cursor-pointer transition-colors ${selectedUni?.id === uni.id ? "bg-muted/40" : ""}`}
+                        >
+                          <td className="px-6 py-4">
+                            <div className="font-medium text-foreground">
+                              {uni.name}
                             </div>
-                            <span className="text-xs text-muted-foreground min-w-10">
-                              {Math.round(progress)}%
-                            </span>
-                          </div>
-                        </td>
-                      </motion.tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-              {filtered.length === 0 && (
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-sm text-muted-foreground">
+                              {uni.region}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <StatusBadge status={uni.status} />
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-sm text-foreground">
+                              {uni.currency}{" "}
+                              {uni.tuition?.toLocaleString() ?? ":"}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div
+                              className={`text-sm ${urgencyColors[urgency]}`}
+                            >
+                              {uni.deadline
+                                ? new Date(uni.deadline).toLocaleDateString(
+                                    "en-US",
+                                    {
+                                      month: "short",
+                                      day: "numeric",
+                                      year: "numeric",
+                                    },
+                                  )
+                                : ":"}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 bg-muted rounded-full h-2 max-w-24">
+                                <div
+                                  className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full"
+                                  style={{ width: `${progress}%` }}
+                                />
+                              </div>
+                              <span className="text-xs text-muted-foreground min-w-10">
+                                {Math.round(progress)}%
+                              </span>
+                            </div>
+                          </td>
+                        </motion.tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                {filtered.length === 0 && (
+                  <div className="text-center py-12">
+                    <p className="text-muted-foreground text-sm">
+                      {universities.length === 0
+                        ? 'No universities yet. Click "Add University" to get started.'
+                        : "No universities found"}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Mobile card list - visible on small screens only */}
+            <div className="sm:hidden space-y-3">
+              {filtered.length === 0 ? (
                 <div className="text-center py-12">
                   <p className="text-muted-foreground text-sm">
                     {universities.length === 0
-                      ? 'No universities yet. Click "Add University" to get started.'
+                      ? 'No universities yet. Tap "Add University" to get started.'
                       : "No universities found"}
                   </p>
                 </div>
+              ) : (
+                filtered.map((uni) => {
+                  const urgency = getDeadlineUrgency(uni.deadline);
+                  const urgencyColors = {
+                    urgent: "text-destructive font-semibold",
+                    warning: "text-orange-600 font-medium",
+                    normal: "text-muted-foreground",
+                  };
+                  const progress =
+                    uni.checklist.length > 0
+                      ? (uni.checklist.filter((c) => c.completed).length /
+                          uni.checklist.length) *
+                        100
+                      : 0;
+                  return (
+                    <motion.div
+                      key={uni.id}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.2 }}
+                      onClick={() => setSelectedUni(uni)}
+                      className={`bg-card rounded-xl border shadow-sm p-4 cursor-pointer hover:shadow-md transition-shadow ${selectedUni?.id === uni.id ? "ring-2 ring-ring" : ""}`}
+                    >
+                      <div className="flex items-start justify-between gap-2 mb-3">
+                        <p className="font-medium text-foreground">
+                          {uni.name}
+                        </p>
+                        <StatusBadge status={uni.status} size="sm" />
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
+                        <span>{uni.region}</span>
+                        <span className={urgencyColors[urgency]}>
+                          {uni.deadline
+                            ? new Date(uni.deadline).toLocaleDateString(
+                                "en-US",
+                                {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric",
+                                },
+                              )
+                            : "No deadline"}
+                        </span>
+                      </div>
+                      {uni.checklist.length > 0 && (
+                        <div>
+                          <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                            <span>Progress</span>
+                            <span>{Math.round(progress)}%</span>
+                          </div>
+                          <div className="w-full bg-muted rounded-full h-1.5">
+                            <div
+                              className="bg-gradient-to-r from-blue-500 to-purple-600 h-1.5 rounded-full"
+                              style={{ width: `${progress}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </motion.div>
+                  );
+                })
               )}
             </div>
-          </div>
+          </>
         )}
       </div>
 

@@ -137,70 +137,76 @@ function TimelineView({
           </p>
         </div>
 
-        <div className="space-y-5">
-          {items.map((item) => {
-            const openPct = toPercent(item.startDate!);
-            const widthPct = widthPercent(item.startDate!, item.deadline!);
-            const color = STATUS_COLORS[item.status] ?? "#9CA3AF";
-            const config =
-              statusConfig[item.status as keyof typeof statusConfig];
+        <div className="overflow-x-auto -mx-2 px-2">
+          <div className="space-y-5 min-w-[480px]">
+            {items.map((item) => {
+              const openPct = toPercent(item.startDate!);
+              const widthPct = widthPercent(item.startDate!, item.deadline!);
+              const color = STATUS_COLORS[item.status] ?? "#9CA3AF";
+              const config =
+                statusConfig[item.status as keyof typeof statusConfig];
 
-            return (
-              <motion.div
-                key={item.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.25, delay: 0.05 }}
-                className="relative"
-              >
-                <div className="flex items-center gap-3 mb-2">
-                  <span className="text-sm font-medium text-foreground min-w-48 truncate">
-                    {item.name}
-                  </span>
-                  {config && (
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${config.color} ${config.bgColor}`}
-                    >
-                      {config.label}
+              return (
+                <motion.div
+                  key={item.id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.25, delay: 0.05 }}
+                  className="relative"
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="text-sm font-medium text-foreground min-w-48 truncate">
+                      {item.name}
                     </span>
-                  )}
-                </div>
-                <div className="relative h-8 bg-muted rounded-lg overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${widthPct}%` }}
-                    transition={{ duration: 0.6, delay: 0.1, ease: "easeOut" }}
-                    className="absolute h-full rounded-lg flex items-center px-2 overflow-hidden"
-                    style={{
-                      left: `${openPct}%`,
-                      backgroundColor: color + "33",
-                      border: `2px solid ${color}`,
-                    }}
-                  >
-                    <span className="text-xs font-medium text-foreground truncate">
-                      {new Date(item.startDate!).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                      })}
-                      {" – "}
-                      {new Date(item.deadline!).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </span>
-                  </motion.div>
-                  {todayPercent >= 0 && todayPercent <= 100 && (
-                    <div
-                      className="absolute top-0 bottom-0 w-0.5 bg-destructive z-10"
-                      style={{ left: `${todayPercent}%` }}
+                    {config && (
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${config.color} ${config.bgColor}`}
+                      >
+                        {config.label}
+                      </span>
+                    )}
+                  </div>
+                  <div className="relative h-8 bg-muted rounded-lg overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${widthPct}%` }}
+                      transition={{
+                        duration: 0.6,
+                        delay: 0.1,
+                        ease: "easeOut",
+                      }}
+                      className="absolute h-full rounded-lg flex items-center px-2 overflow-hidden"
+                      style={{
+                        left: `${openPct}%`,
+                        backgroundColor: color + "33",
+                        border: `2px solid ${color}`,
+                      }}
                     >
-                      <div className="absolute -top-1 left-1/2 -translate-x-1/2 size-2 bg-destructive rounded-full" />
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            );
-          })}
+                      <span className="text-xs font-medium text-foreground truncate">
+                        {new Date(item.startDate!).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                        })}
+                        {" – "}
+                        {new Date(item.deadline!).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </span>
+                    </motion.div>
+                    {todayPercent >= 0 && todayPercent <= 100 && (
+                      <div
+                        className="absolute top-0 bottom-0 w-0.5 bg-destructive z-10"
+                        style={{ left: `${todayPercent}%` }}
+                      >
+                        <div className="absolute -top-1 left-1/2 -translate-x-1/2 size-2 bg-destructive rounded-full" />
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
         </div>
 
         {/* Global today marker */}
@@ -429,8 +435,8 @@ export function Timeline() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-card border-b border-border px-8 py-6">
-        <div className="flex items-center justify-between">
+      <header className="bg-card border-b border-border px-4 sm:px-8 py-4 sm:py-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold text-foreground">Timeline</h1>
             <p className="text-sm text-muted-foreground mt-1">
@@ -469,7 +475,7 @@ export function Timeline() {
         </div>
       </header>
 
-      <div className="p-8 space-y-6">
+      <div className="p-4 sm:p-8 space-y-5 sm:space-y-6">
         {/* Tab switcher : same pattern as Scholarships page */}
         <div className="flex gap-1 bg-muted p-1 rounded-lg w-fit">
           <button
@@ -498,7 +504,7 @@ export function Timeline() {
                 </div>
               ))}
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
               <div className="bg-card rounded-xl border shadow-sm p-5 space-y-3">
                 <Skeleton className="h-5 w-36 mb-4" />
                 {Array.from({ length: 4 }).map((_, i) => (
