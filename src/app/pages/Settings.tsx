@@ -1,29 +1,48 @@
+import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
-import { LogOut, User, Shield, Info, Moon, Sun } from "lucide-react";
+import { LogOut, User, Shield, Info, Moon, Sun, Mail } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "../lib/supabase";
 
-const inputCls =
+const readonlyCls =
   "flex h-9 w-full rounded-md border border-border bg-muted/50 px-3 py-1 text-sm text-muted-foreground cursor-not-allowed";
 
 export function Settings() {
   const { user, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const [sendingReset, setSendingReset] = useState(false);
+
+  const handlePasswordReset = async () => {
+    if (!user?.email) return;
+    setSendingReset(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+      redirectTo: `${window.location.origin}/`,
+    });
+    setSendingReset(false);
+    if (error) {
+      toast.error("Failed to send reset email", { description: error.message });
+    } else {
+      toast.success("Password reset email sent", {
+        description: `Check ${user.email} for the reset link.`,
+      });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-border px-8 py-6">
+      <header className="bg-card border-b border-border px-4 sm:px-8 py-4 sm:py-6">
         <h1 className="text-2xl font-semibold text-foreground">Settings</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Manage your account and preferences
         </p>
       </header>
 
-      <div className="p-8 max-w-2xl space-y-6">
+      <div className="p-4 sm:p-8 max-w-2xl space-y-6">
         {/* Account */}
         <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
           <div className="flex items-center gap-3 px-6 py-4 border-b border-border">
-            <User className="size-4 text-muted-foreground" />
+            <User className="size-4 text-muted-foreground" aria-hidden="true" />
             <h2 className="text-base font-semibold text-foreground">Account</h2>
           </div>
           <div className="px-6 py-5 space-y-4">
@@ -31,16 +50,10 @@ export function Settings() {
               <label className="block text-sm font-medium text-foreground mb-1.5">
                 Email address
               </label>
-              <input readOnly value={user?.email ?? ""} className={inputCls} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">
-                User ID
-              </label>
               <input
                 readOnly
-                value={user?.id ?? ""}
-                className={`${inputCls} font-mono text-xs`}
+                value={user?.email ?? ""}
+                className={readonlyCls}
               />
             </div>
           </div>
@@ -50,9 +63,15 @@ export function Settings() {
         <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
           <div className="flex items-center gap-3 px-6 py-4 border-b border-border">
             {theme === "dark" ? (
-              <Moon className="size-4 text-muted-foreground" />
+              <Moon
+                className="size-4 text-muted-foreground"
+                aria-hidden="true"
+              />
             ) : (
-              <Sun className="size-4 text-muted-foreground" />
+              <Sun
+                className="size-4 text-muted-foreground"
+                aria-hidden="true"
+              />
             )}
             <h2 className="text-base font-semibold text-foreground">
               Appearance
@@ -72,6 +91,7 @@ export function Settings() {
                 onClick={toggleTheme}
                 role="switch"
                 aria-checked={theme === "dark"}
+                aria-label="Toggle dark mode"
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                   theme === "dark" ? "bg-primary" : "bg-muted-foreground/30"
                 }`}
@@ -89,33 +109,56 @@ export function Settings() {
         {/* Security */}
         <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
           <div className="flex items-center gap-3 px-6 py-4 border-b border-border">
-            <Shield className="size-4 text-muted-foreground" />
+            <Shield
+              className="size-4 text-muted-foreground"
+              aria-hidden="true"
+            />
             <h2 className="text-base font-semibold text-foreground">
               Security
             </h2>
           </div>
-          <div className="px-6 py-5">
-            <p className="text-sm text-muted-foreground mb-4">
-              To change your password, sign out and use the "Forgot Password"
-              option on the login page.
-            </p>
-            <button
-              onClick={async () => {
-                await signOut();
-                toast.success("Signed out successfully");
-              }}
-              className="inline-flex items-center gap-2 px-4 h-9 border border-destructive text-destructive text-sm font-medium rounded-md hover:bg-destructive hover:text-destructive-foreground transition-colors"
-            >
-              <LogOut className="size-4" />
-              Sign Out
-            </button>
+          <div className="px-6 py-5 space-y-4">
+            <div>
+              <p className="text-sm font-medium text-foreground mb-1">
+                Change Password
+              </p>
+              <p className="text-xs text-muted-foreground mb-3">
+                We will send a password reset link to your email address.
+              </p>
+              <button
+                onClick={handlePasswordReset}
+                disabled={sendingReset}
+                className="inline-flex items-center gap-2 px-4 h-9 border border-border text-foreground text-sm font-medium rounded-md hover:bg-accent disabled:opacity-50 transition-colors"
+              >
+                <Mail className="size-4" aria-hidden="true" />
+                {sendingReset ? "Sending..." : "Send reset email"}
+              </button>
+            </div>
+            <div className="pt-2 border-t border-border">
+              <p className="text-sm font-medium text-foreground mb-1">
+                Sign Out
+              </p>
+              <p className="text-xs text-muted-foreground mb-3">
+                Sign out of your account on this device.
+              </p>
+              <button
+                onClick={async () => {
+                  await signOut();
+                  toast.success("Signed out successfully");
+                }}
+                className="inline-flex items-center gap-2 px-4 h-9 border border-destructive text-destructive text-sm font-medium rounded-md hover:bg-destructive hover:text-destructive-foreground transition-colors"
+              >
+                <LogOut className="size-4" aria-hidden="true" />
+                Sign Out
+              </button>
+            </div>
           </div>
         </div>
 
         {/* About */}
         <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
           <div className="flex items-center gap-3 px-6 py-4 border-b border-border">
-            <Info className="size-4 text-muted-foreground" />
+            <Info className="size-4 text-muted-foreground" aria-hidden="true" />
             <h2 className="text-base font-semibold text-foreground">About</h2>
           </div>
           <div className="px-6 py-5 space-y-2">

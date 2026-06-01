@@ -169,11 +169,11 @@ export function DashboardOverview() {
   if (loading)
     return (
       <div className="min-h-screen bg-background">
-        <header className="bg-card border-b border-border px-8 py-6">
+        <header className="bg-card border-b border-border px-4 sm:px-8 py-4 sm:py-6">
           <Skeleton className="h-8 w-56 mb-2" />
           <Skeleton className="h-4 w-80" />
         </header>
-        <div className="p-8 space-y-8">
+        <div className="p-4 sm:p-8 space-y-6 sm:space-y-8">
           <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-4">
             {Array.from({ length: 8 }).map((_, i) => (
               <div
@@ -188,7 +188,7 @@ export function DashboardOverview() {
               </div>
             ))}
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             <div className="lg:col-span-2 space-y-6">
               <div className="bg-card rounded-xl border shadow-sm p-6">
                 <Skeleton className="h-6 w-48 mb-2" />
@@ -239,7 +239,7 @@ export function DashboardOverview() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-card border-b border-border px-8 py-6">
+      <header className="bg-card border-b border-border px-4 sm:px-8 py-4 sm:py-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-semibold text-foreground">
@@ -259,7 +259,7 @@ export function DashboardOverview() {
         </div>
       </header>
 
-      <div className="p-8 space-y-8">
+      <div className="p-4 sm:p-8 space-y-6 sm:space-y-8">
         {/* Alert strip */}
         {(openingSoon.length > 0 ||
           upcomingDeadlines.some(
@@ -392,7 +392,7 @@ export function DashboardOverview() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.45, ease: "easeOut" }}
-              className="grid grid-cols-1 lg:grid-cols-3 gap-6"
+              className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6"
             >
               {/* Charts */}
               <div className="lg:col-span-2 space-y-6">
