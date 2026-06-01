@@ -857,6 +857,8 @@ export function Scholarships() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [selected, setSelected] = useState<Scholarship | null>(null);
   const [activeTab, setActiveTab] = useState<"list" | "funding">("list");
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 9;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -890,6 +892,16 @@ export function Scholarships() {
       }),
     [scholarships, searchQuery, statusFilter],
   );
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated = useMemo(
+    () => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filtered, page],
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, statusFilter]);
+
   const fundingData = useMemo(
     () =>
       universities
@@ -1054,7 +1066,7 @@ export function Scholarships() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filtered.map((schol) => {
+                {paginated.map((schol) => {
                   const urgency = getDeadlineUrgency(schol.deadline ?? null);
                   const urgencyBorder = {
                     urgent: "border-l-destructive bg-destructive/5",
@@ -1167,6 +1179,82 @@ export function Scholarships() {
                     </motion.div>
                   );
                 })}
+              </div>
+            )}
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-2">
+                <p className="text-xs text-muted-foreground">
+                  Showing {(page - 1) * PAGE_SIZE + 1}–
+                  {Math.min(page * PAGE_SIZE, filtered.length)} of{" "}
+                  {filtered.length}
+                </p>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setPage(1)}
+                    disabled={page === 1}
+                    aria-label="First page"
+                    className="h-8 w-8 flex items-center justify-center rounded-md border border-border text-sm disabled:opacity-40 hover:bg-accent transition-colors"
+                  >
+                    «
+                  </button>
+                  <button
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    aria-label="Previous page"
+                    className="h-8 w-8 flex items-center justify-center rounded-md border border-border text-sm disabled:opacity-40 hover:bg-accent transition-colors"
+                  >
+                    ‹
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter(
+                      (p) =>
+                        p === 1 || p === totalPages || Math.abs(p - page) <= 1,
+                    )
+                    .reduce<(number | "…")[]>((acc, p, idx, arr) => {
+                      if (idx > 0 && p - (arr[idx - 1] as number) > 1)
+                        acc.push("…");
+                      acc.push(p);
+                      return acc;
+                    }, [])
+                    .map((p, i) =>
+                      p === "…" ? (
+                        <span
+                          key={`ellipsis-${i}`}
+                          className="h-8 w-8 flex items-center justify-center text-sm text-muted-foreground"
+                        >
+                          …
+                        </span>
+                      ) : (
+                        <button
+                          key={p}
+                          onClick={() => setPage(p as number)}
+                          aria-label={`Page ${p}`}
+                          aria-current={page === p ? "page" : undefined}
+                          className={`h-8 w-8 flex items-center justify-center rounded-md border text-sm transition-colors ${page === p ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-accent"}`}
+                        >
+                          {p}
+                        </button>
+                      ),
+                    )}
+                  <button
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages}
+                    aria-label="Next page"
+                    className="h-8 w-8 flex items-center justify-center rounded-md border border-border text-sm disabled:opacity-40 hover:bg-accent transition-colors"
+                  >
+                    ›
+                  </button>
+                  <button
+                    onClick={() => setPage(totalPages)}
+                    disabled={page === totalPages}
+                    aria-label="Last page"
+                    className="h-8 w-8 flex items-center justify-center rounded-md border border-border text-sm disabled:opacity-40 hover:bg-accent transition-colors"
+                  >
+                    »
+                  </button>
+                </div>
               </div>
             )}
           </>

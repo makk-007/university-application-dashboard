@@ -796,6 +796,22 @@ export function Universities() {
   const [regionFilter, setRegionFilter] = useState<string>("all");
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedUni, setSelectedUni] = useState<University | null>(null);
+  const [sortKey, setSortKey] = useState<
+    "name" | "region" | "deadline" | "progress"
+  >("name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
+
+  const handleSort = (key: typeof sortKey) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+    setPage(1);
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -819,6 +835,10 @@ export function Universities() {
     [universities],
   );
 
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, statusFilter, regionFilter]);
+
   const filtered = useMemo(
     () =>
       universities.filter((u) => {
@@ -830,6 +850,32 @@ export function Universities() {
         return matchSearch && matchStatus && matchRegion;
       }),
     [universities, searchQuery, statusFilter, regionFilter],
+  );
+
+  const sorted = useMemo(() => {
+    return [...filtered].sort((a, b) => {
+      let cmp = 0;
+      if (sortKey === "name") cmp = a.name.localeCompare(b.name);
+      else if (sortKey === "region") cmp = a.region.localeCompare(b.region);
+      else if (sortKey === "deadline") {
+        cmp =
+          new Date(a.deadline ?? 0).getTime() -
+          new Date(b.deadline ?? 0).getTime();
+      } else if (sortKey === "progress") {
+        const pct = (u: typeof a) =>
+          u.checklist.length > 0
+            ? u.checklist.filter((c) => c.completed).length / u.checklist.length
+            : 0;
+        cmp = pct(a) - pct(b);
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+  }, [filtered, sortKey, sortDir]);
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const paginated = useMemo(
+    () => sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [sorted, page],
   );
 
   const handleUpdated = (updated: University) => {
@@ -927,7 +973,7 @@ export function Universities() {
           </div>
         </div>
 
-        {loading && (
+        {loading ? (
           <div className="bg-card rounded-xl border shadow-sm overflow-hidden hidden sm:block">
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -977,8 +1023,7 @@ export function Universities() {
               </table>
             </div>
           </div>
-        )}
-        {!loading && error && (
+        ) : error ? (
           <div className="bg-card rounded-xl border p-12 text-center shadow-sm">
             <AlertCircle className="size-8 text-destructive mx-auto mb-3" />
             <p className="text-sm text-muted-foreground mb-4">{error}</p>
@@ -989,8 +1034,7 @@ export function Universities() {
               Retry
             </button>
           </div>
-        )}
-        {!loading && !error && (
+        ) : (
           <>
             <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
@@ -998,24 +1042,36 @@ export function Universities() {
                   <thead className="bg-muted/50 border-b border-border">
                     <tr>
                       {[
-                        "University",
-                        "Region",
-                        "Status",
-                        "Tuition Fee",
-                        "Deadline",
-                        "Progress",
-                      ].map((h) => (
+                        { label: "University", key: "name" as const },
+                        { label: "Region", key: "region" as const },
+                        { label: "Status", key: null },
+                        { label: "Tuition Fee", key: null },
+                        { label: "Deadline", key: "deadline" as const },
+                        { label: "Progress", key: "progress" as const },
+                      ].map(({ label, key }) => (
                         <th
-                          key={h}
-                          className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                          key={label}
+                          onClick={key ? () => handleSort(key) : undefined}
+                          className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider select-none ${key ? "text-muted-foreground hover:text-foreground cursor-pointer transition-colors" : "text-muted-foreground"}`}
                         >
-                          {h}
+                          <span className="inline-flex items-center gap-1">
+                            {label}
+                            {key && (
+                              <span className="text-[10px] leading-none">
+                                {sortKey === key
+                                  ? sortDir === "asc"
+                                    ? " ▲"
+                                    : " ▼"
+                                  : " ⬍"}
+                              </span>
+                            )}
+                          </span>
                         </th>
                       ))}
                     </tr>
                   </thead>
                   <tbody className="bg-card divide-y divide-border">
-                    {filtered.map((uni) => {
+                    {paginated.map((uni) => {
                       const progress =
                         uni.checklist.length > 0
                           ? (uni.checklist.filter((c) => c.completed).length /
@@ -1103,81 +1159,151 @@ export function Universities() {
               </div>
             </div>
 
-            {/* Mobile card list - visible on small screens only */}
-            <div className="sm:hidden space-y-3">
-              {filtered.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-muted-foreground text-sm">
-                    {universities.length === 0
-                      ? 'No universities yet. Tap "Add University" to get started.'
-                      : "No universities found"}
-                  </p>
-                </div>
-              ) : (
-                filtered.map((uni) => {
-                  const urgency = getDeadlineUrgency(uni.deadline);
-                  const urgencyColors = {
-                    urgent: "text-destructive font-semibold",
-                    warning: "text-orange-600 font-medium",
-                    normal: "text-muted-foreground",
-                  };
-                  const progress =
-                    uni.checklist.length > 0
-                      ? (uni.checklist.filter((c) => c.completed).length /
-                          uni.checklist.length) *
-                        100
-                      : 0;
-                  return (
-                    <motion.div
-                      key={uni.id}
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.2 }}
-                      onClick={() => setSelectedUni(uni)}
-                      className={`bg-card rounded-xl border shadow-sm p-4 cursor-pointer hover:shadow-md transition-shadow ${selectedUni?.id === uni.id ? "ring-2 ring-ring" : ""}`}
-                    >
-                      <div className="flex items-start justify-between gap-2 mb-3">
-                        <p className="font-medium text-foreground">
-                          {uni.name}
-                        </p>
-                        <StatusBadge status={uni.status} size="sm" />
-                      </div>
-                      <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
-                        <span>{uni.region}</span>
-                        <span className={urgencyColors[urgency]}>
-                          {uni.deadline
-                            ? new Date(uni.deadline).toLocaleDateString(
-                                "en-US",
-                                {
-                                  month: "short",
-                                  day: "numeric",
-                                  year: "numeric",
-                                },
-                              )
-                            : "No deadline"}
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="hidden sm:flex items-center justify-between mt-4">
+                <p className="text-xs text-muted-foreground">
+                  Showing {(page - 1) * PAGE_SIZE + 1}–
+                  {Math.min(page * PAGE_SIZE, sorted.length)} of {sorted.length}
+                </p>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setPage(1)}
+                    disabled={page === 1}
+                    aria-label="First page"
+                    className="h-8 w-8 flex items-center justify-center rounded-md border border-border text-sm disabled:opacity-40 hover:bg-accent transition-colors"
+                  >
+                    «
+                  </button>
+                  <button
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    aria-label="Previous page"
+                    className="h-8 w-8 flex items-center justify-center rounded-md border border-border text-sm disabled:opacity-40 hover:bg-accent transition-colors"
+                  >
+                    ‹
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter(
+                      (p) =>
+                        p === 1 || p === totalPages || Math.abs(p - page) <= 1,
+                    )
+                    .reduce<(number | "…")[]>((acc, p, idx, arr) => {
+                      if (idx > 0 && p - (arr[idx - 1] as number) > 1)
+                        acc.push("…");
+                      acc.push(p);
+                      return acc;
+                    }, [])
+                    .map((p, i) =>
+                      p === "…" ? (
+                        <span
+                          key={`ellipsis-${i}`}
+                          className="h-8 w-8 flex items-center justify-center text-sm text-muted-foreground"
+                        >
+                          …
                         </span>
-                      </div>
-                      {uni.checklist.length > 0 && (
-                        <div>
-                          <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                            <span>Progress</span>
-                            <span>{Math.round(progress)}%</span>
-                          </div>
-                          <div className="w-full bg-muted rounded-full h-1.5">
-                            <div
-                              className="bg-gradient-to-r from-blue-500 to-purple-600 h-1.5 rounded-full"
-                              style={{ width: `${progress}%` }}
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </motion.div>
-                  );
-                })
-              )}
-            </div>
+                      ) : (
+                        <button
+                          key={p}
+                          onClick={() => setPage(p as number)}
+                          aria-label={`Page ${p}`}
+                          aria-current={page === p ? "page" : undefined}
+                          className={`h-8 w-8 flex items-center justify-center rounded-md border text-sm transition-colors ${page === p ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-accent"}`}
+                        >
+                          {p}
+                        </button>
+                      ),
+                    )}
+                  <button
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages}
+                    aria-label="Next page"
+                    className="h-8 w-8 flex items-center justify-center rounded-md border border-border text-sm disabled:opacity-40 hover:bg-accent transition-colors"
+                  >
+                    ›
+                  </button>
+                  <button
+                    onClick={() => setPage(totalPages)}
+                    disabled={page === totalPages}
+                    aria-label="Last page"
+                    className="h-8 w-8 flex items-center justify-center rounded-md border border-border text-sm disabled:opacity-40 hover:bg-accent transition-colors"
+                  >
+                    »
+                  </button>
+                </div>
+              </div>
+            )}
           </>
         )}
+
+        {/* Mobile card list - visible on small screens only */}
+        <div className="sm:hidden space-y-3">
+          {filtered.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground text-sm">
+                {universities.length === 0
+                  ? 'No universities yet. Tap "Add University" to get started.'
+                  : "No universities found"}
+              </p>
+            </div>
+          ) : (
+            paginated.map((uni) => {
+              const urgency = getDeadlineUrgency(uni.deadline);
+              const urgencyColors = {
+                urgent: "text-destructive font-semibold",
+                warning: "text-orange-600 font-medium",
+                normal: "text-muted-foreground",
+              };
+              const progress =
+                uni.checklist.length > 0
+                  ? (uni.checklist.filter((c) => c.completed).length /
+                      uni.checklist.length) *
+                    100
+                  : 0;
+              return (
+                <motion.div
+                  key={uni.id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2 }}
+                  onClick={() => setSelectedUni(uni)}
+                  className={`bg-card rounded-xl border shadow-sm p-4 cursor-pointer hover:shadow-md transition-shadow ${selectedUni?.id === uni.id ? "ring-2 ring-ring" : ""}`}
+                >
+                  <div className="flex items-start justify-between gap-2 mb-3">
+                    <p className="font-medium text-foreground">{uni.name}</p>
+                    <StatusBadge status={uni.status} size="sm" />
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
+                    <span>{uni.region}</span>
+                    <span className={urgencyColors[urgency]}>
+                      {uni.deadline
+                        ? new Date(uni.deadline).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })
+                        : "No deadline"}
+                    </span>
+                  </div>
+                  {uni.checklist.length > 0 && (
+                    <div>
+                      <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                        <span>Progress</span>
+                        <span>{Math.round(progress)}%</span>
+                      </div>
+                      <div className="w-full bg-muted rounded-full h-1.5">
+                        <div
+                          className="bg-gradient-to-r from-blue-500 to-purple-600 h-1.5 rounded-full"
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              );
+            })
+          )}
+        </div>
       </div>
 
       <AnimatePresence>
