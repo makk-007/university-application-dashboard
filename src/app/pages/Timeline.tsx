@@ -338,9 +338,24 @@ export function Timeline() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<"applications" | "scholarships">(
-    "applications",
+    () =>
+      (sessionStorage.getItem("timeline-tab") as
+        | "applications"
+        | "scholarships") ?? "applications",
   );
-  const [view, setView] = useState<"all" | "active">("all");
+  const [view, setView] = useState<"all" | "active">(
+    () =>
+      (sessionStorage.getItem("timeline-view") as "all" | "active") ?? "all",
+  );
+
+  const handleSetTab = (t: "applications" | "scholarships") => {
+    setTab(t);
+    sessionStorage.setItem("timeline-tab", t);
+  };
+  const handleSetView = (v: "all" | "active") => {
+    setView(v);
+    sessionStorage.setItem("timeline-view", v);
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -458,7 +473,7 @@ export function Timeline() {
               {(["all", "active"] as const).map((v) => (
                 <button
                   key={v}
-                  onClick={() => setView(v)}
+                  onClick={() => handleSetView(v)}
                   className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${view === v ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
                 >
                   {v === "all" ? "All" : "Active Only"}
@@ -479,13 +494,13 @@ export function Timeline() {
         {/* Tab switcher : same pattern as Scholarships page */}
         <div className="flex gap-1 bg-muted p-1 rounded-lg w-fit">
           <button
-            onClick={() => setTab("applications")}
+            onClick={() => handleSetTab("applications")}
             className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === "applications" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
           >
             Application Timeline
           </button>
           <button
-            onClick={() => setTab("scholarships")}
+            onClick={() => handleSetTab("scholarships")}
             className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === "scholarships" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
           >
             Scholarship Timeline
