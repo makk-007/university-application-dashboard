@@ -11,6 +11,7 @@ import {
   X,
   Check,
   Loader2,
+  GraduationCap,
 } from "lucide-react";
 import { toast } from "sonner";
 import { University, ApplicationStatus } from "../types";
@@ -1148,12 +1149,30 @@ export function Universities() {
                   </tbody>
                 </table>
                 {filtered.length === 0 && (
-                  <div className="text-center py-12">
-                    <p className="text-muted-foreground text-sm">
+                  <div className="text-center py-16">
+                    <GraduationCap
+                      className="size-10 text-muted-foreground/30 mx-auto mb-3"
+                      aria-hidden="true"
+                    />
+                    <p className="text-sm font-medium text-foreground mb-1">
                       {universities.length === 0
-                        ? 'No universities yet. Click "Add University" to get started.'
+                        ? "No universities yet"
                         : "No universities found"}
                     </p>
+                    <p className="text-xs text-muted-foreground mb-4">
+                      {universities.length === 0
+                        ? "Start tracking your applications by adding a university."
+                        : "Try adjusting your search or filters."}
+                    </p>
+                    {universities.length === 0 && (
+                      <button
+                        onClick={() => setShowAddModal(true)}
+                        className="inline-flex items-center gap-2 px-4 h-9 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 transition-colors"
+                      >
+                        <Plus className="size-4" aria-hidden="true" />
+                        Add University
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -1239,12 +1258,30 @@ export function Universities() {
         {/* Mobile card list - visible on small screens only */}
         <div className="sm:hidden space-y-3">
           {filtered.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground text-sm">
+            <div className="text-center py-16">
+              <GraduationCap
+                className="size-10 text-muted-foreground/30 mx-auto mb-3"
+                aria-hidden="true"
+              />
+              <p className="text-sm font-medium text-foreground mb-1">
                 {universities.length === 0
-                  ? 'No universities yet. Tap "Add University" to get started.'
+                  ? "No universities yet"
                   : "No universities found"}
               </p>
+              <p className="text-xs text-muted-foreground mb-4">
+                {universities.length === 0
+                  ? "Start tracking your applications by adding a university."
+                  : "Try adjusting your search or filters."}
+              </p>
+              {universities.length === 0 && (
+                <button
+                  onClick={() => setShowAddModal(true)}
+                  className="inline-flex items-center gap-2 px-4 h-9 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 transition-colors"
+                >
+                  <Plus className="size-4" aria-hidden="true" />
+                  Add University
+                </button>
+              )}
             </div>
           ) : (
             paginated.map((uni) => {

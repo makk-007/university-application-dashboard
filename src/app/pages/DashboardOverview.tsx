@@ -527,7 +527,11 @@ export function DashboardOverview() {
                                 : "Past deadline"}
                             </p>
                             <div className="mt-1">
-                              <StatusBadge status={item.status} size="sm" />
+                              <StatusBadge
+                                status={item.status}
+                                size="sm"
+                                showIcon
+                              />
                             </div>
                           </div>
                         );
@@ -587,6 +591,9 @@ export function DashboardOverview() {
                         })}
                       </span>
                     </div>
+                    <p className="text-[11px] text-muted-foreground/70 mt-1">
+                      * GHS amounts are approximate. Exchange rates may vary.
+                    </p>
                   </div>
                 </div>
               </div>

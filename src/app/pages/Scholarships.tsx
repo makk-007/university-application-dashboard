@@ -953,13 +953,19 @@ export function Scholarships() {
             </p>
           </div>
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <div
+              className="flex items-center gap-2 text-sm text-muted-foreground"
+              title="GHS amounts are approximate. Exchange rates may vary."
+            >
               <DollarSign className="size-4 text-green-600" />
               <span>
                 Total Potential: GHS{" "}
                 {totalPotential.toLocaleString("en-US", {
                   maximumFractionDigits: 0,
                 })}
+                <span className="ml-1 text-[11px] text-muted-foreground/60">
+                  approx.
+                </span>
               </span>
             </div>
             <button
@@ -1057,12 +1063,29 @@ export function Scholarships() {
             </div>
             {filtered.length === 0 ? (
               <div className="bg-card rounded-xl border p-12 text-center shadow-sm">
-                <DollarSign className="size-10 text-muted-foreground/30 mx-auto mb-3" />
-                <p className="text-muted-foreground text-sm">
+                <DollarSign
+                  className="size-10 text-muted-foreground/30 mx-auto mb-3"
+                  aria-hidden="true"
+                />
+                <p className="text-sm font-medium text-foreground mb-1">
                   {scholarships.length === 0
-                    ? 'No scholarships yet. Click "Add Scholarship" to get started.'
+                    ? "No scholarships yet"
                     : "No scholarships found"}
                 </p>
+                <p className="text-xs text-muted-foreground mb-4">
+                  {scholarships.length === 0
+                    ? "Start tracking funding opportunities by adding a scholarship."
+                    : "Try adjusting your search or filters."}
+                </p>
+                {scholarships.length === 0 && (
+                  <button
+                    onClick={() => setShowAddModal(true)}
+                    className="inline-flex items-center gap-2 px-4 h-9 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 transition-colors"
+                  >
+                    <Plus className="size-4" aria-hidden="true" />
+                    Add Scholarship
+                  </button>
+                )}
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
