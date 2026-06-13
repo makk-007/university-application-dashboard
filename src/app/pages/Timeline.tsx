@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { RefreshCw, AlertCircle, Calendar } from "lucide-react";
 import { Skeleton } from "../components/ui/skeleton";
 import { toast } from "sonner";
@@ -545,30 +545,42 @@ export function Timeline() {
               Retry
             </button>
           </div>
-        ) : tab === "applications" ? (
-          <TimelineView
-            items={sortedUniItems}
-            allItems={uniItems}
-            view={view}
-            ganttTitle="Application Timeline Overview"
-            emptyMessage={
-              universities.length === 0
-                ? "No universities yet. Add universities with opening and deadline dates to see the timeline."
-                : "No universities have both an opening date and a deadline."
-            }
-          />
         ) : (
-          <TimelineView
-            items={sortedScholItems}
-            allItems={scholItems}
-            view={view}
-            ganttTitle="Scholarship Timeline Overview"
-            emptyMessage={
-              scholarships.length === 0
-                ? "No scholarships yet. Add scholarships with opening and deadline dates to see the timeline."
-                : "No scholarships have both an opening date and a deadline."
-            }
-          />
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={tab}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+            >
+              {tab === "applications" ? (
+                <TimelineView
+                  items={sortedUniItems}
+                  allItems={uniItems}
+                  view={view}
+                  ganttTitle="Application Timeline Overview"
+                  emptyMessage={
+                    universities.length === 0
+                      ? "No universities yet. Add universities with opening and deadline dates to see the timeline."
+                      : "No universities have both an opening date and a deadline."
+                  }
+                />
+              ) : (
+                <TimelineView
+                  items={sortedScholItems}
+                  allItems={scholItems}
+                  view={view}
+                  ganttTitle="Scholarship Timeline Overview"
+                  emptyMessage={
+                    scholarships.length === 0
+                      ? "No scholarships yet. Add scholarships with opening and deadline dates to see the timeline."
+                      : "No scholarships have both an opening date and a deadline."
+                  }
+                />
+              )}
+            </motion.div>
+          </AnimatePresence>
         )}
       </div>
     </div>
