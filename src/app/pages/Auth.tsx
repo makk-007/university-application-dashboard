@@ -36,11 +36,15 @@ function getStrength(pw: string): {
   return { score, label: "Strong", color: "bg-green-500" };
 }
 
-export function Auth() {
+export function Auth({
+  defaultMode = "login",
+}: {
+  defaultMode?: "login" | "signup" | "forgot";
+}) {
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
-  const [mode, setMode] = useState<Mode>("login");
+  const [mode, setMode] = useState<Mode>(defaultMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
