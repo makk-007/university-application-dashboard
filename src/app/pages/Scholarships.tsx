@@ -392,6 +392,14 @@ function ScholarshipDetailDrawer({
     scholarship.startDate ?? "",
   );
   const [editDeadline, setEditDeadline] = useState(scholarship.deadline ?? "");
+  const [pendingUnis, setPendingUnis] = useState<string[]>(
+    scholarship.eligibleUniversities,
+  );
+  const [savingUnis, setSavingUnis] = useState(false);
+
+  const unisDirty =
+    JSON.stringify([...pendingUnis].sort()) !==
+    JSON.stringify([...s.eligibleUniversities].sort());
 
   useEffect(() => {
     setS(scholarship);
@@ -401,6 +409,7 @@ function ScholarshipDetailDrawer({
     setEditCurrency(scholarship.currency ?? "GHS");
     setEditStartDate(scholarship.startDate ?? "");
     setEditDeadline(scholarship.deadline ?? "");
+    setPendingUnis(scholarship.eligibleUniversities);
   }, [scholarship.id]);
 
   const saveField = async (field: string, value: any) => {
@@ -457,17 +466,24 @@ function ScholarshipDetailDrawer({
     }, 800);
     setNotesTimer(t);
   };
-  const handleToggleUni = async (uniId: string) => {
-    const newList = s.eligibleUniversities.includes(uniId)
-      ? s.eligibleUniversities.filter((x) => x !== uniId)
-      : [...s.eligibleUniversities, uniId];
+  const handleToggleUni = (uniId: string) => {
+    setPendingUnis((prev) =>
+      prev.includes(uniId) ? prev.filter((x) => x !== uniId) : [...prev, uniId],
+    );
+  };
+
+  const handleSaveUnis = async () => {
+    setSavingUnis(true);
     try {
-      await setScholarshipUniversities(s.id, newList);
-      const updated = { ...s, eligibleUniversities: newList };
+      await setScholarshipUniversities(s.id, pendingUnis);
+      const updated = { ...s, eligibleUniversities: pendingUnis };
       setS(updated);
       onUpdated(updated);
+      toast.success("Eligible universities saved");
     } catch (e: any) {
       toast.error("Failed to update universities", { description: e.message });
+    } finally {
+      setSavingUnis(false);
     }
   };
   const handleToggleCheck = async (itemId: string, checked: boolean) => {
@@ -802,9 +818,28 @@ function ScholarshipDetailDrawer({
 
           {universities.length > 0 && (
             <div>
-              <label className="text-sm font-medium text-foreground mb-3 block">
-                Eligible Universities
-              </label>
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-sm font-medium text-foreground">
+                  Eligible Universities
+                </label>
+                {unisDirty && (
+                  <button
+                    onClick={handleSaveUnis}
+                    disabled={savingUnis}
+                    className="inline-flex items-center gap-1.5 px-3 h-7 bg-primary text-primary-foreground text-xs font-medium rounded-md hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                  >
+                    {savingUnis ? (
+                      <Loader2
+                        className="size-3 animate-spin"
+                        aria-hidden="true"
+                      />
+                    ) : (
+                      <Check className="size-3" aria-hidden="true" />
+                    )}
+                    {savingUnis ? "Saving…" : "Save changes"}
+                  </button>
+                )}
+              </div>
               <div className="space-y-1.5 max-h-48 overflow-y-auto">
                 {universities.map((u) => (
                   <label
@@ -813,9 +848,9 @@ function ScholarshipDetailDrawer({
                   >
                     <div
                       onClick={() => handleToggleUni(u.id)}
-                      className={`size-4 rounded border-2 flex items-center justify-center transition-colors shrink-0 cursor-pointer ${s.eligibleUniversities.includes(u.id) ? "bg-primary border-primary text-primary-foreground" : "border-border hover:border-ring"}`}
+                      className={`size-4 rounded border-2 flex items-center justify-center transition-colors shrink-0 cursor-pointer ${pendingUnis.includes(u.id) ? "bg-primary border-primary text-primary-foreground" : "border-border hover:border-ring"}`}
                     >
-                      {s.eligibleUniversities.includes(u.id) && (
+                      {pendingUnis.includes(u.id) && (
                         <Check className="size-3" />
                       )}
                     </div>
