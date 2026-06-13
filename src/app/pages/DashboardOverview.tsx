@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   GraduationCap,
   FileText,
@@ -45,7 +45,7 @@ export function DashboardOverview() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -61,10 +61,10 @@ export function DashboardOverview() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   const stats = useMemo(
     () => ({
@@ -152,7 +152,8 @@ export function DashboardOverview() {
       })
       .sort(
         (a, b) =>
-          new Date(a.startDate!).getTime() - new Date(b.startDate!).getTime(),
+          new Date(a.startDate ?? 0).getTime() -
+          new Date(b.startDate ?? 0).getTime(),
       )
       .slice(0, 3);
   }, [universities]);
@@ -251,9 +252,10 @@ export function DashboardOverview() {
           </div>
           <button
             onClick={load}
+            aria-label="Refresh dashboard"
             className="inline-flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground bg-secondary hover:bg-secondary/80 rounded-lg transition-colors"
           >
-            <RefreshCw className="size-4" />
+            <RefreshCw className="size-4" aria-hidden="true" />
             <span>Refresh</span>
           </button>
         </div>
