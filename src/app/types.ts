@@ -45,7 +45,11 @@ export interface Scholarship {
   status: ApplicationStatus;
   amount: number;
   currency: string;
-  coverage: "Full Scholarship" | "Tuition Only" | "Stipend Only" | "Tuition + Stipend";
+  coverage:
+    | "Full Scholarship"
+    | "Tuition Only"
+    | "Stipend Only"
+    | "Tuition + Stipend";
   eligibleUniversities: string[];
   notes?: string;
   link?: string;
@@ -59,11 +63,13 @@ export interface User {
   email: string;
 }
 
+// Exchange rates to GHS. Last updated: June 2026.
+// These are approximate mid-market rates - actual conversion will vary.
 export const FX_TO_GHS: Record<string, number> = {
-  USD: 10.94,
-  EUR: 13.0,
-  GBP: 14.98,
-  SEK: 1.3,
+  USD: 13.5,
+  EUR: 14.8,
+  GBP: 17.2,
+  SEK: 1.25,
   GHS: 1.0,
 };
 

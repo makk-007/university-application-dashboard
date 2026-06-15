@@ -1,9 +1,19 @@
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
-import { LogOut, User, Shield, Info, Moon, Sun, Mail } from "lucide-react";
+import {
+  LogOut,
+  User,
+  Shield,
+  Info,
+  Moon,
+  Sun,
+  Mail,
+  TrendingUp,
+} from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "../lib/supabase";
+import { FX_TO_GHS } from "../types";
 
 const readonlyCls =
   "flex h-9 w-full rounded-md border border-border bg-muted/50 px-3 py-1 text-sm text-muted-foreground cursor-not-allowed";
@@ -152,6 +162,58 @@ export function Settings() {
                 Sign Out
               </button>
             </div>
+          </div>
+        </div>
+
+        {/* Currency Rates */}
+        <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+          <div className="flex items-center gap-3 px-6 py-4 border-b border-border">
+            <TrendingUp
+              className="size-4 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <h2 className="text-base font-semibold text-foreground">
+              Currency Rates
+            </h2>
+          </div>
+          <div className="px-6 py-5 space-y-3">
+            <p className="text-xs text-muted-foreground">
+              GHS conversion rates used across the app. These are approximate
+              mid-market rates and may differ from actual bank or transfer
+              rates.
+            </p>
+            <div className="rounded-lg border border-border overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Currency
+                    </th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      1 unit in GHS
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {Object.entries(FX_TO_GHS)
+                    .filter(([code]) => code !== "GHS")
+                    .map(([code, rate]) => (
+                      <tr key={code} className="bg-card">
+                        <td className="px-4 py-2.5 font-medium text-foreground">
+                          {code}
+                        </td>
+                        <td className="px-4 py-2.5 text-right text-muted-foreground">
+                          GHS {rate.toFixed(2)}
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-[11px] text-muted-foreground/60">
+              Last updated: June 2026. Rates are hardcoded and do not update
+              automatically.
+            </p>
           </div>
         </div>
 
