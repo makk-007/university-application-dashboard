@@ -377,6 +377,11 @@ function ScholarshipDetailDrawer({
   onUpdated: (s: Scholarship) => void;
   onDeleted: (id: string) => void;
 }) {
+  const { selectedCycleId, cycles } = useCycle();
+  const cycleName = scholarship.cycleId
+    ? cycles.find((c) => c.id === scholarship.cycleId)?.name
+    : null;
+  const showCycleBadge = selectedCycleId === null && cycleName;
   const [s, setS] = useState<Scholarship>(scholarship);
   const [savingStatus, setSavingStatus] = useState(false);
   const [savingNotes, setSavingNotes] = useState(false);
@@ -556,9 +561,16 @@ function ScholarshipDetailDrawer({
         className="fixed right-0 top-0 h-full w-full sm:max-w-2xl bg-card shadow-2xl z-50 flex flex-col overflow-hidden border-l border-border"
       >
         <div className="sticky top-0 bg-card border-b border-border px-6 py-4 flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-card-foreground truncate pr-4">
-            {s.name}
-          </h2>
+          <div className="min-w-0 pr-4">
+            <h2 className="text-xl font-semibold text-card-foreground truncate">
+              {s.name}
+            </h2>
+            {showCycleBadge && (
+              <span className="inline-flex items-center mt-1 px-2 py-0.5 rounded-md bg-muted text-muted-foreground text-xs font-medium">
+                {cycleName}
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-1 shrink-0">
             <button
               onClick={() => setShowDeleteModal(true)}
@@ -929,6 +941,12 @@ export function Scholarships() {
     if (cyclesLoading) return;
     load();
   }, [load, cyclesLoading]);
+
+  // The previously open item may not belong to the newly selected cycle,
+  // so close the drawer rather than showing stale or out-of-scope data.
+  useEffect(() => {
+    setSelected(null);
+  }, [selectedCycleId]);
 
   const filtered = useMemo(
     () =>
