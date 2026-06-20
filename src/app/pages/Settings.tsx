@@ -51,7 +51,7 @@ export function Settings() {
 
       <div className="p-4 sm:p-8 max-w-2xl space-y-6">
         {/* Account */}
-        <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+        <div className="bg-card rounded-xl border card-resting overflow-hidden">
           <div className="flex items-center gap-3 px-6 py-4 border-b border-border">
             <User className="size-4 text-muted-foreground" aria-hidden="true" />
             <h2 className="text-base font-semibold text-foreground">Account</h2>
@@ -74,7 +74,7 @@ export function Settings() {
         <CycleManagementCard />
 
         {/* Appearance */}
-        <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+        <div className="bg-card rounded-xl border card-resting overflow-hidden">
           <div className="flex items-center gap-3 px-6 py-4 border-b border-border">
             {theme === "dark" ? (
               <Moon
@@ -121,7 +121,7 @@ export function Settings() {
         </div>
 
         {/* Security */}
-        <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+        <div className="bg-card rounded-xl border card-resting overflow-hidden">
           <div className="flex items-center gap-3 px-6 py-4 border-b border-border">
             <Shield
               className="size-4 text-muted-foreground"
@@ -170,7 +170,7 @@ export function Settings() {
         </div>
 
         {/* Currency Rates */}
-        <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+        <div className="bg-card rounded-xl border card-resting overflow-hidden">
           <div className="flex items-center gap-3 px-6 py-4 border-b border-border">
             <TrendingUp
               className="size-4 text-muted-foreground"
@@ -206,7 +206,7 @@ export function Settings() {
                         <td className="px-4 py-2.5 font-medium text-foreground">
                           {code}
                         </td>
-                        <td className="px-4 py-2.5 text-right text-muted-foreground">
+                        <td className="px-4 py-2.5 text-right text-muted-foreground tabular-nums">
                           GHS {rate.toFixed(2)}
                         </td>
                       </tr>
@@ -222,7 +222,7 @@ export function Settings() {
         </div>
 
         {/* About */}
-        <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+        <div className="bg-card rounded-xl border card-resting overflow-hidden">
           <div className="flex items-center gap-3 px-6 py-4 border-b border-border">
             <Info className="size-4 text-muted-foreground" aria-hidden="true" />
             <h2 className="text-base font-semibold text-foreground">About</h2>
