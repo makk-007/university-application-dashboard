@@ -8,6 +8,7 @@ import { StatusBadge } from "../components/StatusBadge";
 import { statusConfig, getDaysUntil } from "../utils/statusConfig";
 import { getUniversities } from "../../services/universities";
 import { getScholarships } from "../../services/scholarships";
+import { useCycle } from "../context/CycleContext";
 
 const STATUS_COLORS: Record<string, string> = {
   "not-yet-open": "#0EA5E9",
@@ -333,6 +334,7 @@ function TimelineView({
 
 // ── Main Timeline Page ────────────────────────────────────────────────────────
 export function Timeline() {
+  const { selectedCycleId, cycles, loading: cyclesLoading } = useCycle();
   const [universities, setUniversities] = useState<University[]>([]);
   const [scholarships, setScholarships] = useState<Scholarship[]>([]);
   const [loading, setLoading] = useState(true);
@@ -361,9 +363,10 @@ export function Timeline() {
     setLoading(true);
     setError(null);
     try {
+      // selectedCycleId of null means "All Cycles", so omit the filter
       const [unis, schols] = await Promise.all([
-        getUniversities(),
-        getScholarships(),
+        getUniversities(selectedCycleId ?? undefined),
+        getScholarships(selectedCycleId ?? undefined),
       ]);
       setUniversities(unis);
       setScholarships(schols);
@@ -373,11 +376,17 @@ export function Timeline() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedCycleId]);
 
   useEffect(() => {
+    if (cyclesLoading) return;
     load();
-  }, [load]);
+  }, [load, cyclesLoading]);
+
+  const selectedCycleName = useMemo(() => {
+    if (!selectedCycleId) return "All Cycles";
+    return cycles.find((c) => c.id === selectedCycleId)?.name ?? "All Cycles";
+  }, [cycles, selectedCycleId]);
 
   const today = new Date();
 
@@ -456,6 +465,12 @@ export function Timeline() {
             <h1 className="text-2xl font-semibold text-foreground">Timeline</h1>
             <p className="text-sm text-muted-foreground mt-1">
               Visualize application and scholarship periods
+            </p>
+            <p className="text-xs text-muted-foreground mt-1.5">
+              Viewing{" "}
+              <span className="font-medium text-foreground">
+                {selectedCycleName}
+              </span>
             </p>
           </div>
           <div className="flex items-center gap-3">
