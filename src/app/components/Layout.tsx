@@ -30,7 +30,7 @@ const navItems = [
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const location = useLocation();
   return (
-    <ul className="space-y-0.5">
+    <ul className="space-y-1">
       {navItems.map((item) => {
         const isActive =
           location.pathname === item.path ||
@@ -41,13 +41,23 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             <Link
               to={item.path}
               onClick={onNavigate}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+              className={`group relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors duration-150 ${
                 isActive
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold border-l-2 border-sidebar-primary pl-[10px]"
-                  : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground border-l-2 border-transparent pl-[10px]"
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold card-resting"
+                  : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
               }`}
             >
-              <Icon className="size-4 shrink-0" aria-hidden="true" />
+              {isActive && (
+                <motion.span
+                  layoutId="active-nav-indicator"
+                  className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-sidebar-primary"
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                />
+              )}
+              <Icon
+                className={`size-4 shrink-0 transition-transform duration-150 ${isActive ? "" : "group-hover:translate-x-0.5"}`}
+                aria-hidden="true"
+              />
               {item.label}
             </Link>
           </li>
@@ -76,8 +86,8 @@ export function Layout() {
 
   const sidebarFooter = (
     <div className="p-3 border-t border-sidebar-border">
-      <div className="flex items-center gap-3 px-3 py-2 rounded-lg">
-        <div className="size-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xs font-semibold shrink-0">
+      <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg">
+        <div className="size-8 bg-brand-100 rounded-full flex items-center justify-center text-brand-800 text-xs font-semibold shrink-0">
           {initials}
         </div>
         <div className="flex-1 min-w-0">
@@ -93,7 +103,7 @@ export function Layout() {
           title={
             theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
           }
-          className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded"
+          className="text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors p-1.5 rounded-md"
         >
           {theme === "dark" ? (
             <Sun className="size-4" aria-hidden="true" />
@@ -108,7 +118,7 @@ export function Layout() {
           }}
           aria-label="Sign out"
           title="Sign out"
-          className="text-muted-foreground hover:text-destructive transition-colors p-1 rounded"
+          className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors p-1.5 rounded-md"
         >
           <LogOut className="size-4" aria-hidden="true" />
         </button>
@@ -120,15 +130,15 @@ export function Layout() {
     <div className="min-h-screen bg-background flex">
       {/* ── Desktop sidebar ─────────────────────────────────────────── */}
       <aside className="hidden lg:flex w-64 bg-sidebar border-r border-sidebar-border fixed h-full flex-col z-10">
-        <div className="p-6 border-b border-sidebar-border">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+        <div className="px-5 py-5 border-b border-sidebar-border">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center shrink-0">
               <GraduationCap
                 className="size-5 text-primary-foreground"
                 aria-hidden="true"
               />
             </div>
-            <h1 className="font-semibold text-sm text-sidebar-foreground leading-tight">
+            <h1 className="font-semibold text-sm text-sidebar-foreground leading-tight tracking-tight">
               Application Tracker
             </h1>
           </div>
@@ -148,13 +158,13 @@ export function Layout() {
       {/* ── Mobile top bar ──────────────────────────────────────────── */}
       <header className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-sidebar border-b border-sidebar-border flex items-center justify-between px-4 z-20">
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center">
+          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shrink-0">
             <GraduationCap
               className="size-4 text-primary-foreground"
               aria-hidden="true"
             />
           </div>
-          <span className="font-semibold text-sm text-sidebar-foreground">
+          <span className="font-semibold text-sm text-sidebar-foreground tracking-tight">
             App Tracker
           </span>
         </div>
@@ -204,17 +214,17 @@ export function Layout() {
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
               transition={{ duration: 0.25, ease: "easeOut" }}
-              className="lg:hidden fixed left-0 top-0 h-full w-72 bg-sidebar border-r border-sidebar-border flex flex-col z-40"
+              className="lg:hidden fixed left-0 top-0 h-full w-72 bg-sidebar border-r border-sidebar-border flex flex-col z-40 card-raised"
             >
-              <div className="p-5 border-b border-sidebar-border flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+              <div className="px-5 py-5 border-b border-sidebar-border flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center shrink-0">
                     <GraduationCap
                       className="size-5 text-primary-foreground"
                       aria-hidden="true"
                     />
                   </div>
-                  <span className="font-semibold text-sm text-sidebar-foreground">
+                  <span className="font-semibold text-sm text-sidebar-foreground tracking-tight">
                     Application Tracker
                   </span>
                 </div>

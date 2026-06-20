@@ -62,8 +62,11 @@ export function CycleSelector({ compact = false }: CycleSelectorProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-sidebar-border bg-sidebar-accent/40 hover:bg-sidebar-accent text-sidebar-foreground transition-colors">
-          <CalendarRange className="size-4 shrink-0" aria-hidden="true" />
+        <button className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border border-sidebar-border bg-card text-sidebar-foreground hover:border-sidebar-primary/40 hover:bg-sidebar-accent/50 transition-colors card-resting">
+          <CalendarRange
+            className="size-4 shrink-0 text-sidebar-primary"
+            aria-hidden="true"
+          />
           <span className="flex-1 text-left text-sm font-medium truncate">
             {label}
           </span>
@@ -106,13 +109,19 @@ function CycleMenuItems({
           <span className="flex items-center gap-2 truncate">
             <span className="truncate">{cycle.name}</span>
             {cycle.isActive && (
-              <span className="text-[10px] uppercase tracking-wide text-emerald-600 font-semibold shrink-0">
+              <span
+                className="text-[10px] uppercase tracking-wide font-semibold shrink-0"
+                style={{ color: "var(--status-accepted-strong)" }}
+              >
                 Active
               </span>
             )}
           </span>
           {selectedCycleId === cycle.id && (
-            <Check className="size-3.5 shrink-0" aria-hidden="true" />
+            <Check
+              className="size-3.5 shrink-0 text-primary"
+              aria-hidden="true"
+            />
           )}
         </DropdownMenuItem>
       ))}
@@ -126,7 +135,10 @@ function CycleMenuItems({
           All Cycles
         </span>
         {selectedCycleId === null && (
-          <Check className="size-3.5 shrink-0" aria-hidden="true" />
+          <Check
+            className="size-3.5 shrink-0 text-primary"
+            aria-hidden="true"
+          />
         )}
       </DropdownMenuItem>
     </>
