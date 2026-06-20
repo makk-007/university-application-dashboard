@@ -8,6 +8,16 @@ export type ApplicationStatus =
   | "waitlisted"
   | "awarded";
 
+export interface ApplicationCycle {
+  id: string;
+  name: string;
+  description?: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  isActive: boolean;
+  createdAt?: string;
+}
+
 export interface ChecklistItem {
   id: string;
   universityId?: string;
@@ -26,6 +36,7 @@ export interface LinkedScholarship {
 
 export interface University {
   id: string;
+  cycleId: string | null;
   name: string;
   region: string;
   status: ApplicationStatus;
@@ -41,6 +52,7 @@ export interface University {
 
 export interface Scholarship {
   id: string;
+  cycleId: string | null;
   name: string;
   status: ApplicationStatus;
   amount: number;
