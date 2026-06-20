@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { PageTransition } from "./PageTransition";
+import { CycleSelector } from "./CycleSelector";
 
 const navItems = [
   { path: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -132,6 +133,9 @@ export function Layout() {
             </h1>
           </div>
         </div>
+        <div className="p-3 border-b border-sidebar-border">
+          <CycleSelector />
+        </div>
         <nav
           className="flex-1 p-3 overflow-y-auto"
           aria-label="Main navigation"
@@ -155,6 +159,7 @@ export function Layout() {
           </span>
         </div>
         <div className="flex items-center gap-1">
+          <CycleSelector compact />
           <button
             onClick={toggleTheme}
             aria-label={
@@ -220,6 +225,9 @@ export function Layout() {
                 >
                   <X className="size-4" aria-hidden="true" />
                 </button>
+              </div>
+              <div className="p-3 border-b border-sidebar-border">
+                <CycleSelector />
               </div>
               <nav
                 className="flex-1 p-3 overflow-y-auto"
