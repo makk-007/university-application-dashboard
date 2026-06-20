@@ -25,7 +25,7 @@ export function KPICard({
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay, ease: "easeOut" }}
-      className="bg-card text-card-foreground flex flex-col gap-3 rounded-xl border p-5 shadow-sm hover:shadow-md transition-shadow"
+      className="bg-card text-card-foreground flex flex-col gap-3 rounded-xl border p-5 card-resting hover:card-raised transition-shadow duration-200"
     >
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">{title}</p>
@@ -34,7 +34,9 @@ export function KPICard({
         </div>
       </div>
       <div>
-        <p className={`text-3xl font-semibold ${color}`}>{value}</p>
+        <p className={`text-3xl font-semibold tabular-nums ${color}`}>
+          {value}
+        </p>
         {subtitle && (
           <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>
         )}
