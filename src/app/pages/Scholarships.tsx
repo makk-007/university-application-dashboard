@@ -26,6 +26,7 @@ import { StatusBadge } from "../components/StatusBadge";
 import { Skeleton } from "../components/ui/skeleton";
 import {
   statusConfig,
+  statusStrong,
   ALL_STATUSES,
   getDaysUntil,
   getDeadlineUrgency,
@@ -722,7 +723,12 @@ function ScholarshipDetailDrawer({
                     key={status}
                     onClick={() => handleStatusChange(status)}
                     disabled={savingStatus}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border-2 ${isSelected ? `${config.color} ${config.bgColor} ${config.borderColor}` : "bg-muted text-muted-foreground border-transparent hover:border-border"}`}
+                    style={
+                      isSelected
+                        ? { borderColor: statusStrong[status] }
+                        : undefined
+                    }
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border-2 ${isSelected ? `${config.color} ${config.bgColor}` : "bg-muted text-muted-foreground border-transparent hover:border-border"}`}
                   >
                     {config.label}
                   </button>

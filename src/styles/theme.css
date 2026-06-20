@@ -49,6 +49,55 @@
   --sidebar-accent-foreground: #0f5f7a; /* dark shade of primary for active text */
   --sidebar-border: #d0e8f0;
   --sidebar-ring: #1c96c1;
+
+  /* Brand ramp, derived from primary #1C96C1 (light mode) */
+  --brand-50: #eaf7fb;
+  --brand-100: #cdeef6;
+  --brand-200: #9fddec;
+  --brand-400: #5cc2dd;
+  --brand-600: #13728f;
+  --brand-800: #0c4f63;
+
+  /* Status taxonomy : one hue family per application/scholarship status,
+     consistent across badges, KPI icons, and charts. Each status carries a
+     tint (badge bg), a strong (icon/border), and a text (on-tint) shade. */
+  --status-not-yet-open-tint: #e6f1fb;
+  --status-not-yet-open-strong: #378add;
+  --status-not-yet-open-text: #0c447c;
+
+  --status-not-started-tint: #f1efe8;
+  --status-not-started-strong: #888780;
+  --status-not-started-text: #444441;
+
+  --status-in-progress-tint: #e6f1fb;
+  --status-in-progress-strong: #185fa5;
+  --status-in-progress-text: #0c447c;
+
+  --status-submitted-tint: #eeedfe;
+  --status-submitted-strong: #7f77dd;
+  --status-submitted-text: #3c3489;
+
+  --status-accepted-tint: #eaf3de;
+  --status-accepted-strong: #639922;
+  --status-accepted-text: #27500a;
+
+  --status-rejected-tint: #fcebeb;
+  --status-rejected-strong: #e24b4a;
+  --status-rejected-text: #791f1f;
+
+  --status-waitlisted-tint: #faeeda;
+  --status-waitlisted-strong: #ba7517;
+  --status-waitlisted-text: #633806;
+
+  --status-awarded-tint: #e1f5ee;
+  --status-awarded-strong: #1d9e75;
+  --status-awarded-text: #085041;
+
+  /* Elevation : two-tier shadow system replacing flat shadow-sm everywhere */
+  --shadow-resting:
+    0 1px 2px rgba(15, 23, 42, 0.04), 0 2px 8px rgba(15, 23, 42, 0.04);
+  --shadow-raised:
+    0 2px 4px rgba(15, 23, 42, 0.06), 0 8px 20px rgba(15, 23, 42, 0.08);
 }
 
 .dark {
@@ -97,6 +146,53 @@
   --sidebar-accent-foreground: #7dd8f0; /* light primary tint for active text */
   --sidebar-border: rgba(255, 255, 255, 0.07);
   --sidebar-ring: #2aafd8;
+
+  /* Brand ramp, dark mode (lighter stops read better on dark surfaces) */
+  --brand-50: #163445;
+  --brand-100: #194a5e;
+  --brand-200: #1e6883;
+  --brand-400: #2aafd8;
+  --brand-600: #7dd8f0;
+  --brand-800: #c5ecf8;
+
+  /* Status taxonomy, dark mode : tint becomes a dark-shade fill,
+     strong/text become light tints for contrast on dark surfaces */
+  --status-not-yet-open-tint: #123654;
+  --status-not-yet-open-strong: #85b7eb;
+  --status-not-yet-open-text: #b5d4f4;
+
+  --status-not-started-tint: #2c2c2a;
+  --status-not-started-strong: #b4b2a9;
+  --status-not-started-text: #d3d1c7;
+
+  --status-in-progress-tint: #123654;
+  --status-in-progress-strong: #85b7eb;
+  --status-in-progress-text: #b5d4f4;
+
+  --status-submitted-tint: #261f4a;
+  --status-submitted-strong: #afa9ec;
+  --status-submitted-text: #cecbf6;
+
+  --status-accepted-tint: #1f3209;
+  --status-accepted-strong: #97c459;
+  --status-accepted-text: #c0dd97;
+
+  --status-rejected-tint: #3a1414;
+  --status-rejected-strong: #f09595;
+  --status-rejected-text: #f7c1c1;
+
+  --status-waitlisted-tint: #3a2604;
+  --status-waitlisted-strong: #ef9f27;
+  --status-waitlisted-text: #fac775;
+
+  --status-awarded-tint: #073026;
+  --status-awarded-strong: #5dcaa5;
+  --status-awarded-text: #9fe1cb;
+
+  /* Elevation, dark mode : slightly stronger to read against dark surfaces */
+  --shadow-resting: 0 1px 2px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.16);
+  --shadow-raised:
+    0 2px 4px rgba(0, 0, 0, 0.24), 0 8px 20px rgba(0, 0, 0, 0.28);
 }
 
 @theme inline {
@@ -139,6 +235,16 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
   --font-sans: var(--font-sans);
+
+  --color-brand-50: var(--brand-50);
+  --color-brand-100: var(--brand-100);
+  --color-brand-200: var(--brand-200);
+  --color-brand-400: var(--brand-400);
+  --color-brand-600: var(--brand-600);
+  --color-brand-800: var(--brand-800);
+
+  --shadow-resting: var(--shadow-resting);
+  --shadow-raised: var(--shadow-raised);
 }
 
 @layer base {
@@ -160,11 +266,13 @@
     font-size: var(--text-2xl);
     font-weight: var(--font-weight-medium);
     line-height: 1.5;
+    letter-spacing: -0.01em;
   }
   h2 {
     font-size: var(--text-xl);
     font-weight: var(--font-weight-medium);
     line-height: 1.5;
+    letter-spacing: -0.01em;
   }
   h3 {
     font-size: var(--text-lg);
@@ -196,5 +304,22 @@
     font-size: var(--text-base);
     font-weight: var(--font-weight-normal);
     line-height: 1.5;
+  }
+}
+
+@layer utilities {
+  /* Numerals : aligns digit widths in KPI values, table counts, stats */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Elevation : resting state for cards, replaces flat shadow-sm */
+  .card-resting {
+    box-shadow: var(--shadow-resting);
+  }
+
+  /* Elevation : raised state for hover/active cards, modals */
+  .card-raised {
+    box-shadow: var(--shadow-raised);
   }
 }
