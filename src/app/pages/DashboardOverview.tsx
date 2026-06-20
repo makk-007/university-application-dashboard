@@ -11,6 +11,7 @@ import {
   RefreshCw,
   TrendingUp,
   DollarSign,
+  CalendarClock,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { toast } from "sonner";
@@ -32,6 +33,7 @@ import {
 } from "recharts";
 import {
   statusConfig,
+  statusStrong,
   getDeadlineUrgency,
   getDaysUntil,
 } from "../utils/statusConfig";
@@ -114,23 +116,79 @@ export function DashboardOverview() {
   }, [cycles, universities, scholarships, selectedCycleId]);
 
   const pieData = [
-    { name: "Not Yet Open", value: stats.notYetOpen, color: "#0EA5E9" },
-    { name: "Not Started", value: stats.notStarted, color: "#9CA3AF" },
-    { name: "In Progress", value: stats.inProgress, color: "#3B82F6" },
-    { name: "Submitted", value: stats.submitted, color: "#A855F7" },
-    { name: "Accepted", value: stats.accepted, color: "#10B981" },
-    { name: "Rejected", value: stats.rejected, color: "#EF4444" },
-    { name: "Waitlisted", value: stats.waitlisted, color: "#F59E0B" },
+    {
+      name: "Not Yet Open",
+      value: stats.notYetOpen,
+      color: statusStrong["not-yet-open"],
+    },
+    {
+      name: "Not Started",
+      value: stats.notStarted,
+      color: statusStrong["not-started"],
+    },
+    {
+      name: "In Progress",
+      value: stats.inProgress,
+      color: statusStrong["in-progress"],
+    },
+    {
+      name: "Submitted",
+      value: stats.submitted,
+      color: statusStrong["submitted"],
+    },
+    {
+      name: "Accepted",
+      value: stats.accepted,
+      color: statusStrong["accepted"],
+    },
+    {
+      name: "Rejected",
+      value: stats.rejected,
+      color: statusStrong["rejected"],
+    },
+    {
+      name: "Waitlisted",
+      value: stats.waitlisted,
+      color: statusStrong["waitlisted"],
+    },
   ].filter((d) => d.value > 0);
 
   const barData = [
-    { status: "Not Open", count: stats.notYetOpen, fill: "#0EA5E9" },
-    { status: "Not Started", count: stats.notStarted, fill: "#9CA3AF" },
-    { status: "In Progress", count: stats.inProgress, fill: "#3B82F6" },
-    { status: "Submitted", count: stats.submitted, fill: "#A855F7" },
-    { status: "Accepted", count: stats.accepted, fill: "#10B981" },
-    { status: "Rejected", count: stats.rejected, fill: "#EF4444" },
-    { status: "Waitlisted", count: stats.waitlisted, fill: "#F59E0B" },
+    {
+      status: "Not Open",
+      count: stats.notYetOpen,
+      fill: statusStrong["not-yet-open"],
+    },
+    {
+      status: "Not Started",
+      count: stats.notStarted,
+      fill: statusStrong["not-started"],
+    },
+    {
+      status: "In Progress",
+      count: stats.inProgress,
+      fill: statusStrong["in-progress"],
+    },
+    {
+      status: "Submitted",
+      count: stats.submitted,
+      fill: statusStrong["submitted"],
+    },
+    {
+      status: "Accepted",
+      count: stats.accepted,
+      fill: statusStrong["accepted"],
+    },
+    {
+      status: "Rejected",
+      count: stats.rejected,
+      fill: statusStrong["rejected"],
+    },
+    {
+      status: "Waitlisted",
+      count: stats.waitlisted,
+      fill: statusStrong["waitlisted"],
+    },
   ].filter((d) => d.count > 0);
 
   // ── Upcoming deadlines : universities + scholarships (user's addition) ──────
@@ -190,6 +248,22 @@ export function DashboardOverview() {
       .slice(0, 3);
   }, [universities]);
 
+  // ── Upcoming Applications : all not-yet-open universities, soonest first ──
+  const upcomingApplications = useMemo(() => {
+    return universities
+      .filter((u) => u.status === "not-yet-open")
+      .sort((a, b) => {
+        // Universities with a known opening date come first, soonest first.
+        // Universities with no startDate yet are pushed to the end.
+        if (!a.startDate && !b.startDate) return a.name.localeCompare(b.name);
+        if (!a.startDate) return 1;
+        if (!b.startDate) return -1;
+        return (
+          new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+        );
+      });
+  }, [universities]);
+
   const totalFundingGHS = useMemo(
     () =>
       scholarships.reduce(
@@ -211,7 +285,7 @@ export function DashboardOverview() {
             {Array.from({ length: 8 }).map((_, i) => (
               <div
                 key={i}
-                className="bg-card rounded-xl border p-5 shadow-sm space-y-3"
+                className="bg-card rounded-xl border p-5 card-resting space-y-3"
               >
                 <div className="flex items-center justify-between">
                   <Skeleton className="h-4 w-16" />
@@ -223,25 +297,25 @@ export function DashboardOverview() {
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             <div className="lg:col-span-2 space-y-6">
-              <div className="bg-card rounded-xl border shadow-sm p-6">
+              <div className="bg-card rounded-xl border card-resting p-6">
                 <Skeleton className="h-6 w-48 mb-2" />
                 <Skeleton className="h-4 w-64 mb-6" />
                 <Skeleton className="h-[280px] w-full rounded-lg" />
               </div>
-              <div className="bg-card rounded-xl border shadow-sm p-6">
+              <div className="bg-card rounded-xl border card-resting p-6">
                 <Skeleton className="h-6 w-40 mb-2" />
                 <Skeleton className="h-4 w-56 mb-6" />
                 <Skeleton className="h-[220px] w-full rounded-lg" />
               </div>
             </div>
             <div className="space-y-5">
-              <div className="bg-card rounded-xl border shadow-sm p-5 space-y-3">
+              <div className="bg-card rounded-xl border card-resting p-5 space-y-3">
                 <Skeleton className="h-5 w-40 mb-4" />
                 {Array.from({ length: 4 }).map((_, i) => (
                   <Skeleton key={i} className="h-16 w-full rounded-lg" />
                 ))}
               </div>
-              <div className="bg-card rounded-xl border shadow-sm p-5 space-y-3">
+              <div className="bg-card rounded-xl border card-resting p-5 space-y-3">
                 <Skeleton className="h-5 w-36 mb-4" />
                 {Array.from({ length: 4 }).map((_, i) => (
                   <Skeleton key={i} className="h-5 w-full" />
@@ -256,7 +330,7 @@ export function DashboardOverview() {
   if (error)
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="bg-card rounded-xl border p-8 max-w-md text-center shadow-sm">
+        <div className="bg-card rounded-xl border p-8 max-w-md text-center card-resting">
           <AlertCircle className="size-8 text-destructive mx-auto mb-3" />
           <p className="text-foreground mb-4">{error}</p>
           <button
@@ -343,7 +417,7 @@ export function DashboardOverview() {
         )}
 
         {!cyclesLoading && cycles.length === 0 ? (
-          <div className="bg-card rounded-xl border p-16 text-center shadow-sm">
+          <div className="bg-card rounded-xl border p-16 text-center card-resting">
             <GraduationCap className="size-12 text-muted-foreground/30 mx-auto mb-4" />
             <h2 className="text-lg font-medium text-foreground mb-2">
               No application cycles yet
@@ -359,7 +433,7 @@ export function DashboardOverview() {
             </a>
           </div>
         ) : universities.length === 0 ? (
-          <div className="bg-card rounded-xl border p-16 text-center shadow-sm">
+          <div className="bg-card rounded-xl border p-16 text-center card-resting">
             <GraduationCap className="size-12 text-muted-foreground/30 mx-auto mb-4" />
             <h2 className="text-lg font-medium text-foreground mb-2">
               No universities yet
@@ -378,7 +452,7 @@ export function DashboardOverview() {
           <>
             {/* Per-cycle breakdown, All Cycles view only */}
             {cycleBreakdown.length > 1 && (
-              <div className="bg-card rounded-xl border shadow-sm overflow-hidden mb-4 sm:mb-6">
+              <div className="bg-card rounded-xl border card-resting overflow-hidden mb-4 sm:mb-6">
                 <div className="px-6 py-4 border-b border-border">
                   <h2 className="text-base font-semibold text-card-foreground">
                     Breakdown by Cycle
@@ -418,25 +492,33 @@ export function DashboardOverview() {
                             <span className="inline-flex items-center gap-2">
                               {row.cycle.name}
                               {row.cycle.isActive && (
-                                <span className="text-[10px] uppercase tracking-wide text-emerald-600 font-semibold">
+                                <span
+                                  className="text-[10px] uppercase tracking-wide font-semibold"
+                                  style={{
+                                    color: "var(--status-accepted-strong)",
+                                  }}
+                                >
                                   Active
                                 </span>
                               )}
                             </span>
                           </td>
-                          <td className="text-right px-4 py-3 text-foreground">
+                          <td className="text-right px-4 py-3 text-foreground tabular-nums">
                             {row.total}
                           </td>
-                          <td className="text-right px-4 py-3 text-muted-foreground">
+                          <td className="text-right px-4 py-3 text-muted-foreground tabular-nums">
                             {row.pending}
                           </td>
-                          <td className="text-right px-4 py-3 text-green-600">
+                          <td
+                            className="text-right px-4 py-3 tabular-nums"
+                            style={{ color: "var(--status-accepted-strong)" }}
+                          >
                             {row.accepted}
                           </td>
-                          <td className="text-right px-4 py-3 text-destructive">
+                          <td className="text-right px-4 py-3 text-destructive tabular-nums">
                             {row.rejected}
                           </td>
-                          <td className="text-right px-6 py-3 text-foreground">
+                          <td className="text-right px-6 py-3 text-foreground tabular-nums">
                             {row.scholarshipCount}
                           </td>
                         </tr>
@@ -462,56 +544,56 @@ export function DashboardOverview() {
                 delay={0.05}
                 value={stats.notYetOpen}
                 icon={Clock}
-                color="text-sky-600"
-                bgColor="bg-sky-500/10"
+                color="text-[var(--status-not-yet-open-text)]"
+                bgColor="bg-[var(--status-not-yet-open-tint)]"
               />
               <KPICard
                 title="Not Started"
                 delay={0.1}
                 value={stats.notStarted}
                 icon={FileText}
-                color="text-muted-foreground"
-                bgColor="bg-muted"
+                color="text-[var(--status-not-started-text)]"
+                bgColor="bg-[var(--status-not-started-tint)]"
               />
               <KPICard
                 title="In Progress"
                 delay={0.15}
                 value={stats.inProgress}
                 icon={Loader2}
-                color="text-blue-600"
-                bgColor="bg-blue-500/10"
+                color="text-[var(--status-in-progress-text)]"
+                bgColor="bg-[var(--status-in-progress-tint)]"
               />
               <KPICard
                 title="Submitted"
                 delay={0.2}
                 value={stats.submitted}
                 icon={Send}
-                color="text-purple-600"
-                bgColor="bg-purple-500/10"
+                color="text-[var(--status-submitted-text)]"
+                bgColor="bg-[var(--status-submitted-tint)]"
               />
               <KPICard
                 title="Accepted"
                 delay={0.25}
                 value={stats.accepted}
                 icon={CheckCircle2}
-                color="text-green-600"
-                bgColor="bg-green-500/10"
+                color="text-[var(--status-accepted-text)]"
+                bgColor="bg-[var(--status-accepted-tint)]"
               />
               <KPICard
                 title="Rejected"
                 delay={0.3}
                 value={stats.rejected}
                 icon={XCircle}
-                color="text-destructive"
-                bgColor="bg-destructive/10"
+                color="text-[var(--status-rejected-text)]"
+                bgColor="bg-[var(--status-rejected-tint)]"
               />
               <KPICard
                 title="Waitlisted"
                 delay={0.35}
                 value={stats.waitlisted}
                 icon={Clock}
-                color="text-orange-600"
-                bgColor="bg-orange-500/10"
+                color="text-[var(--status-waitlisted-text)]"
+                bgColor="bg-[var(--status-waitlisted-tint)]"
               />
             </div>
 
@@ -523,7 +605,7 @@ export function DashboardOverview() {
             >
               {/* Charts */}
               <div className="lg:col-span-2 space-y-6">
-                <div className="bg-card rounded-xl border shadow-sm p-6">
+                <div className="bg-card rounded-xl border card-resting p-6">
                   <h2 className="text-lg font-semibold text-card-foreground mb-2">
                     Application Status Distribution
                   </h2>
@@ -572,7 +654,7 @@ export function DashboardOverview() {
                   </ResponsiveContainer>
                 </div>
 
-                <div className="bg-card rounded-xl border shadow-sm p-6">
+                <div className="bg-card rounded-xl border card-resting p-6">
                   <h2 className="text-lg font-semibold text-card-foreground mb-2">
                     Applications by Status
                   </h2>
@@ -609,9 +691,13 @@ export function DashboardOverview() {
               {/* Right panel */}
               <div className="space-y-5">
                 {/* Upcoming Deadlines : universities + scholarships */}
-                <div className="bg-card rounded-xl border shadow-sm p-5">
+                <div className="bg-card rounded-xl border card-resting p-5">
                   <h2 className="text-base font-semibold text-card-foreground mb-1 flex items-center gap-2">
-                    <AlertCircle className="size-4 text-orange-500" />
+                    <AlertCircle
+                      className="size-4"
+                      style={{ color: statusStrong["waitlisted"] }}
+                      aria-hidden="true"
+                    />
                     Upcoming Deadlines
                   </h2>
                   <p className="text-xs text-muted-foreground mb-4">
@@ -648,7 +734,7 @@ export function DashboardOverview() {
                                   : "University"}
                               </span>
                             </div>
-                            <p className="text-xs text-muted-foreground mt-0.5">
+                            <p className="text-xs text-muted-foreground mt-0.5 tabular-nums">
                               {days !== null && days >= 0
                                 ? `${days} days : ${new Date(item.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
                                 : "Past deadline"}
@@ -667,10 +753,80 @@ export function DashboardOverview() {
                   )}
                 </div>
 
-                {/* Scholarship Summary */}
-                <div className="bg-card rounded-xl border shadow-sm p-5">
+                {/* Upcoming Applications : universities not yet open */}
+                <div className="bg-card rounded-xl border card-resting p-5">
                   <h2 className="text-base font-semibold text-card-foreground mb-1 flex items-center gap-2">
-                    <TrendingUp className="size-4 text-blue-500" />
+                    <CalendarClock
+                      className="size-4"
+                      style={{ color: statusStrong["not-yet-open"] }}
+                      aria-hidden="true"
+                    />
+                    Upcoming Applications
+                  </h2>
+                  <p className="text-xs text-muted-foreground mb-4">
+                    Universities not yet open for applications
+                  </p>
+                  {upcomingApplications.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      No upcoming applications. Everything is open or in
+                      progress.
+                    </p>
+                  ) : (
+                    <div className="space-y-2.5">
+                      {upcomingApplications.map((u) => {
+                        const days = getDaysUntil(u.startDate);
+                        return (
+                          <div
+                            key={u.id}
+                            className="border-l-4 p-3 rounded-r-lg"
+                            style={{
+                              borderColor: statusStrong["not-yet-open"],
+                              backgroundColor:
+                                "var(--status-not-yet-open-tint)",
+                            }}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="text-sm font-medium text-foreground truncate">
+                                {u.name}
+                              </p>
+                              <span className="text-xs text-muted-foreground shrink-0">
+                                {u.region}
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-0.5 tabular-nums">
+                              {u.startDate
+                                ? days !== null && days >= 0
+                                  ? `Opens in ${days} days : ${new Date(
+                                      u.startDate,
+                                    ).toLocaleDateString("en-US", {
+                                      month: "short",
+                                      day: "numeric",
+                                      year: "numeric",
+                                    })}`
+                                  : "Opening date passed"
+                                : "Opening date not yet set"}
+                            </p>
+                            <div className="mt-1">
+                              <StatusBadge
+                                status="not-yet-open"
+                                size="sm"
+                                showIcon
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Scholarship Summary */}
+                <div className="bg-card rounded-xl border card-resting p-5">
+                  <h2 className="text-base font-semibold text-card-foreground mb-1 flex items-center gap-2">
+                    <TrendingUp
+                      className="size-4 text-brand-600"
+                      aria-hidden="true"
+                    />
                     Scholarship Summary
                   </h2>
                   <p className="text-xs text-muted-foreground mb-4">
@@ -681,7 +837,7 @@ export function DashboardOverview() {
                       <span className="text-sm text-muted-foreground">
                         Total Scholarships
                       </span>
-                      <span className="text-sm font-semibold text-foreground">
+                      <span className="text-sm font-semibold text-foreground tabular-nums">
                         {scholarships.length}
                       </span>
                     </div>
@@ -689,7 +845,10 @@ export function DashboardOverview() {
                       <span className="text-sm text-muted-foreground">
                         Submitted
                       </span>
-                      <span className="text-sm font-semibold text-purple-600">
+                      <span
+                        className="text-sm font-semibold tabular-nums"
+                        style={{ color: statusStrong["submitted"] }}
+                      >
                         {
                           scholarships.filter((s) => s.status === "submitted")
                             .length
@@ -700,7 +859,10 @@ export function DashboardOverview() {
                       <span className="text-sm text-muted-foreground">
                         Awarded
                       </span>
-                      <span className="text-sm font-semibold text-emerald-600">
+                      <span
+                        className="text-sm font-semibold tabular-nums"
+                        style={{ color: statusStrong["awarded"] }}
+                      >
                         {
                           scholarships.filter((s) => s.status === "awarded")
                             .length
@@ -711,7 +873,7 @@ export function DashboardOverview() {
                       <span className="text-sm font-medium text-foreground">
                         Total Potential Funding
                       </span>
-                      <span className="text-sm font-semibold text-blue-600">
+                      <span className="text-sm font-semibold text-brand-600 tabular-nums">
                         GHS{" "}
                         {totalFundingGHS.toLocaleString("en-US", {
                           maximumFractionDigits: 0,
