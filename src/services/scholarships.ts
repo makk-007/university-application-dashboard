@@ -11,6 +11,7 @@ function rowToScholarship(
 ): Scholarship {
   return {
     id: row.id,
+    cycleId: row.cycle_id ?? null,
     name: row.name,
     status: row.status as ApplicationStatus,
     amount: row.amount ?? 0,
@@ -27,17 +28,21 @@ function rowToScholarship(
 
 // ── CRUD ─────────────────────────────────────────────────────────────────────
 
-export async function getScholarships(): Promise<Scholarship[]> {
+export async function getScholarships(
+  cycleId?: string,
+): Promise<Scholarship[]> {
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
-  const { data: schols, error } = await supabase
-    .from("scholarships")
-    .select("*")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: true });
+  let query = supabase.from("scholarships").select("*").eq("user_id", user.id);
+
+  if (cycleId) query = query.eq("cycle_id", cycleId);
+
+  const { data: schols, error } = await query.order("created_at", {
+    ascending: true,
+  });
 
   if (error) throw new Error(parseSupabaseError(error));
   if (!schols || schols.length === 0) return [];
@@ -123,6 +128,7 @@ export async function createScholarship(
     .from("scholarships")
     .insert({
       user_id: user.id,
+      cycle_id: data.cycleId ?? null,
       name: data.name,
       status: data.status,
       amount: data.amount,
@@ -151,6 +157,7 @@ export async function updateScholarship(
   data: Partial<Omit<Scholarship, "id" | "checklist">>,
 ): Promise<void> {
   const updateData: Record<string, any> = {};
+  if (data.cycleId !== undefined) updateData.cycle_id = data.cycleId;
   if (data.name !== undefined) updateData.name = data.name;
   if (data.status !== undefined) updateData.status = data.status;
   if (data.amount !== undefined) updateData.amount = data.amount;

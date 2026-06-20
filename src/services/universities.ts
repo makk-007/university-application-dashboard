@@ -16,6 +16,7 @@ function rowToUniversity(
 ): University {
   return {
     id: row.id,
+    cycleId: row.cycle_id ?? null,
     name: row.name,
     region: row.region,
     status: row.status as ApplicationStatus,
@@ -32,17 +33,19 @@ function rowToUniversity(
 
 // ── CRUD ─────────────────────────────────────────────────────────────────────
 
-export async function getUniversities(): Promise<University[]> {
+export async function getUniversities(cycleId?: string): Promise<University[]> {
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
-  const { data: unis, error } = await supabase
-    .from("universities")
-    .select("*")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: true });
+  let query = supabase.from("universities").select("*").eq("user_id", user.id);
+
+  if (cycleId) query = query.eq("cycle_id", cycleId);
+
+  const { data: unis, error } = await query.order("created_at", {
+    ascending: true,
+  });
 
   if (error) throw new Error(parseSupabaseError(error));
   if (!unis || unis.length === 0) return [];
@@ -124,6 +127,7 @@ export async function createUniversity(
     .from("universities")
     .insert({
       user_id: user.id,
+      cycle_id: data.cycleId ?? null,
       name: data.name,
       region: data.region,
       status: data.status,
@@ -158,6 +162,7 @@ export async function updateUniversity(
   data: Partial<Omit<University, "id" | "checklist" | "scholarships">>,
 ): Promise<void> {
   const updateData: Record<string, any> = {};
+  if (data.cycleId !== undefined) updateData.cycle_id = data.cycleId;
   if (data.name !== undefined) updateData.name = data.name;
   if (data.region !== undefined) updateData.region = data.region;
   if (data.status !== undefined) updateData.status = data.status;
