@@ -20,6 +20,7 @@ import {
   University,
   FX_TO_GHS,
 } from "../types";
+import { useCycle } from "../context/CycleContext";
 import { ConfirmDeleteModal } from "../components/ConfirmDeleteModal";
 import { StatusBadge } from "../components/StatusBadge";
 import { Skeleton } from "../components/ui/skeleton";
@@ -64,10 +65,12 @@ const COVERAGE_OPTIONS = [
 ] as const;
 
 function AddScholarshipModal({
+  activeCycleId,
   onClose,
   onSaved,
   universities,
 }: {
+  activeCycleId: string | null;
   onClose: () => void;
   onSaved: () => void;
   universities: University[];
@@ -125,6 +128,7 @@ function AddScholarshipModal({
     setSaving(true);
     try {
       await createScholarship({
+        cycleId: activeCycleId,
         name: form.name.trim(),
         amount: form.amount,
         currency: form.currency,
@@ -881,6 +885,12 @@ function ScholarshipDetailDrawer({
 }
 
 export function Scholarships() {
+  const {
+    selectedCycleId,
+    activeCycleId,
+    cycles,
+    loading: cyclesLoading,
+  } = useCycle();
   const [scholarships, setScholarships] = useState<Scholarship[]>([]);
   const [universities, setUniversities] = useState<University[]>([]);
   const [loading, setLoading] = useState(true);
@@ -899,9 +909,12 @@ export function Scholarships() {
     setLoading(true);
     setError(null);
     try {
+      // selectedCycleId of null means "All Cycles", so omit the filter.
+      // Universities are scoped to the same cycle so the eligibility
+      // picker never links a scholarship to a different cycle's university.
       const [schols, unis] = await Promise.all([
-        getScholarships(),
-        getUniversities(),
+        getScholarships(selectedCycleId ?? undefined),
+        getUniversities(selectedCycleId ?? undefined),
       ]);
       setScholarships(schols);
       setUniversities(unis);
@@ -911,10 +924,11 @@ export function Scholarships() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedCycleId]);
   useEffect(() => {
+    if (cyclesLoading) return;
     load();
-  }, [load]);
+  }, [load, cyclesLoading]);
 
   const filtered = useMemo(
     () =>
@@ -1012,7 +1026,13 @@ export function Scholarships() {
             </button>
             <button
               onClick={() => setShowAddModal(true)}
-              className="inline-flex items-center gap-2 px-4 h-9 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 transition-colors"
+              disabled={!activeCycleId}
+              title={
+                !activeCycleId
+                  ? "Create a cycle in Settings before adding a scholarship"
+                  : undefined
+              }
+              className="inline-flex items-center gap-2 px-4 h-9 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <Plus className="size-4" />
               Add Scholarship
@@ -1021,6 +1041,13 @@ export function Scholarships() {
         </div>
       </header>
       <div className="p-4 sm:p-8 space-y-5 sm:space-y-6">
+        {!cyclesLoading && cycles.length === 0 && (
+          <div className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-4 py-3">
+            <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
+            You don't have any application cycles yet. Create one in Settings to
+            start adding scholarships.
+          </div>
+        )}
         <div className="flex gap-1 bg-muted p-1 rounded-lg w-fit">
           {(["list", "funding"] as const).map((tab) => (
             <button
@@ -1115,7 +1142,13 @@ export function Scholarships() {
                 {scholarships.length === 0 && (
                   <button
                     onClick={() => setShowAddModal(true)}
-                    className="inline-flex items-center gap-2 px-4 h-9 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 transition-colors"
+                    disabled={!activeCycleId}
+                    title={
+                      !activeCycleId
+                        ? "Create a cycle in Settings before adding a scholarship"
+                        : undefined
+                    }
+                    className="inline-flex items-center gap-2 px-4 h-9 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     <Plus className="size-4" aria-hidden="true" />
                     Add Scholarship
@@ -1402,6 +1435,7 @@ export function Scholarships() {
         {showAddModal && (
           <AddScholarshipModal
             key="add-modal"
+            activeCycleId={activeCycleId}
             onClose={() => setShowAddModal(false)}
             onSaved={load}
             universities={universities}
