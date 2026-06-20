@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { University, ApplicationStatus } from "../types";
+import { useCycle } from "../context/CycleContext";
 import { ConfirmDeleteModal } from "../components/ConfirmDeleteModal";
 import { StatusBadge } from "../components/StatusBadge";
 import { Skeleton } from "../components/ui/skeleton";
@@ -52,9 +53,11 @@ const REGIONS = [
 const CURRENCIES = ["USD", "EUR", "GBP", "SEK", "GHS"];
 
 function AddUniversityModal({
+  activeCycleId,
   onClose,
   onSaved,
 }: {
+  activeCycleId: string | null;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -103,6 +106,7 @@ function AddUniversityModal({
     setSaving(true);
     try {
       await createUniversity({
+        cycleId: activeCycleId,
         name: form.name.trim(),
         region: form.region,
         tuition: form.tuition,
@@ -787,6 +791,12 @@ function UniversityDetailDrawer({
 }
 
 export function Universities() {
+  const {
+    selectedCycleId,
+    activeCycleId,
+    cycles,
+    loading: cyclesLoading,
+  } = useCycle();
   const [universities, setUniversities] = useState<University[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -818,18 +828,20 @@ export function Universities() {
     setLoading(true);
     setError(null);
     try {
-      setUniversities(await getUniversities());
+      // selectedCycleId of null means "All Cycles", so omit the filter
+      setUniversities(await getUniversities(selectedCycleId ?? undefined));
     } catch (e: any) {
       setError(e.message);
       toast.error("Failed to load universities", { description: e.message });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedCycleId]);
 
   useEffect(() => {
+    if (cyclesLoading) return;
     load();
-  }, [load]);
+  }, [load, cyclesLoading]);
 
   const regions = useMemo(
     () => [...new Set(universities.map((u) => u.region))].sort(),
@@ -916,7 +928,13 @@ export function Universities() {
             </button>
             <button
               onClick={() => setShowAddModal(true)}
-              className="inline-flex items-center gap-2 px-4 h-9 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 transition-colors"
+              disabled={!activeCycleId}
+              title={
+                !activeCycleId
+                  ? "Create a cycle in Settings before adding a university"
+                  : undefined
+              }
+              className="inline-flex items-center gap-2 px-4 h-9 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <Plus className="size-4" />
               Add University
@@ -926,6 +944,14 @@ export function Universities() {
       </header>
 
       <div className="p-4 sm:p-8">
+        {!cyclesLoading && cycles.length === 0 && (
+          <div className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-4 py-3 mb-4 sm:mb-6">
+            <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
+            You don't have any application cycles yet. Create one in Settings to
+            start adding universities.
+          </div>
+        )}
+
         <div className="bg-card rounded-xl border p-3 sm:p-4 mb-4 sm:mb-6 shadow-sm">
           <div className="flex flex-wrap gap-3">
             <div className="flex-1 min-w-64">
@@ -1347,6 +1373,7 @@ export function Universities() {
         {showAddModal && (
           <AddUniversityModal
             key="add-modal"
+            activeCycleId={activeCycleId}
             onClose={() => setShowAddModal(false)}
             onSaved={load}
           />
