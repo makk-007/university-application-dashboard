@@ -12,6 +12,9 @@ import {
   Check,
   Loader2,
   GraduationCap,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { University, ApplicationStatus } from "../types";
@@ -139,7 +142,7 @@ function AddUniversityModal({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 8 }}
         transition={{ duration: 0.2, ease: "easeOut" }}
-        className="bg-card rounded-xl border shadow-xl w-full sm:max-w-lg sm:max-h-[90vh] h-full sm:h-auto overflow-y-auto"
+        className="bg-card rounded-xl border card-raised w-full sm:max-w-lg sm:max-h-[90vh] h-full sm:h-auto overflow-y-auto"
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <h2 className="text-lg font-semibold text-card-foreground">
@@ -490,7 +493,7 @@ function UniversityDetailDrawer({
         animate={{ x: 0 }}
         exit={{ x: "100%" }}
         transition={{ duration: 0.3, ease: "easeOut" }}
-        className="fixed right-0 top-0 h-full w-full sm:max-w-2xl bg-card shadow-2xl z-50 flex flex-col overflow-hidden border-l border-border"
+        className="fixed right-0 top-0 h-full w-full sm:max-w-2xl bg-card card-raised z-50 flex flex-col overflow-hidden border-l border-border"
       >
         <div className="sticky top-0 bg-card border-b border-border px-6 py-4 flex items-center justify-between">
           <div className="min-w-0 pr-4">
@@ -602,7 +605,10 @@ function UniversityDetailDrawer({
                 className={inputCls}
               />
               {daysUntilOpen !== null && daysUntilOpen > 0 && (
-                <p className="text-xs text-sky-600 mt-1">
+                <p
+                  className="text-xs mt-1"
+                  style={{ color: "var(--status-not-yet-open-strong)" }}
+                >
                   Opens in {daysUntilOpen} days
                 </p>
               )}
@@ -629,7 +635,7 @@ function UniversityDetailDrawer({
               />
               {daysUntilDeadline !== null && daysUntilDeadline >= 0 && (
                 <p
-                  className={`text-xs mt-1 ${daysUntilDeadline <= 14 ? "text-destructive font-medium" : daysUntilDeadline <= 30 ? "text-orange-600" : "text-muted-foreground"}`}
+                  className={`text-xs mt-1 tabular-nums ${daysUntilDeadline <= 14 ? "text-destructive font-medium" : daysUntilDeadline <= 30 ? "text-orange-600" : "text-muted-foreground"}`}
                 >
                   {daysUntilDeadline} days left
                 </p>
@@ -669,13 +675,13 @@ function UniversityDetailDrawer({
               <label className="text-sm font-medium text-foreground">
                 Requirements Progress
               </label>
-              <span className="text-sm text-muted-foreground">
+              <span className="text-sm text-muted-foreground tabular-nums">
                 {Math.round(progress)}%
               </span>
             </div>
             <div className="w-full bg-muted rounded-full h-2">
               <div
-                className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-300"
+                className="bg-gradient-to-r from-brand-400 to-brand-600 h-2 rounded-full transition-all duration-300"
                 style={{ width: `${progress}%` }}
               />
             </div>
@@ -684,14 +690,15 @@ function UniversityDetailDrawer({
           <div>
             <label className="text-sm font-medium text-foreground mb-3 block">
               Requirements Checklist{" "}
-              <span className="ml-2 text-xs text-muted-foreground font-normal">
+              <span className="ml-2 text-xs text-muted-foreground font-normal tabular-nums">
                 {completed}/{total}
               </span>
             </label>
             <div className="space-y-2">
               {uni.checklist.map((item) => (
-                <div
+                <motion.div
                   key={item.id}
+                  layout
                   className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors group"
                 >
                   <input
@@ -700,18 +707,21 @@ function UniversityDetailDrawer({
                     onChange={() => handleToggleCheck(item.id, !item.completed)}
                     className="size-4 rounded border-border text-primary focus:ring-ring cursor-pointer"
                   />
-                  <span
+                  <motion.span
+                    initial={false}
+                    animate={{ opacity: item.completed ? 0.6 : 1 }}
+                    transition={{ duration: 0.15 }}
                     className={`flex-1 text-sm ${item.completed ? "line-through text-muted-foreground" : "text-foreground"}`}
                   >
                     {item.item}
-                  </span>
+                  </motion.span>
                   <button
                     onClick={() => handleDeleteCheck(item.id)}
                     className="opacity-0 group-hover:opacity-100 p-1 hover:bg-destructive/10 hover:text-destructive rounded transition-all"
                   >
                     <Trash2 className="size-3.5" aria-hidden="true" />
                   </button>
-                </div>
+                </motion.div>
               ))}
             </div>
             <div className="mt-3 flex gap-2">
@@ -940,7 +950,7 @@ export function Universities() {
             </p>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
-            <div className="text-sm text-muted-foreground hidden sm:block">
+            <div className="text-sm text-muted-foreground hidden sm:block tabular-nums">
               {filtered.length} of {universities.length} universities
             </div>
             <button
@@ -976,7 +986,7 @@ export function Universities() {
           </div>
         )}
 
-        <div className="bg-card rounded-xl border p-3 sm:p-4 mb-4 sm:mb-6 shadow-sm">
+        <div className="bg-card rounded-xl border p-3 sm:p-4 mb-4 sm:mb-6 card-resting">
           <div className="flex flex-wrap gap-3">
             <div className="flex-1 min-w-64">
               <div className="relative">
@@ -1025,7 +1035,7 @@ export function Universities() {
         </div>
 
         {loading ? (
-          <div className="bg-card rounded-xl border shadow-sm overflow-hidden hidden sm:block">
+          <div className="bg-card rounded-xl border card-resting overflow-hidden hidden sm:block">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-muted/50 border-b border-border">
@@ -1075,7 +1085,7 @@ export function Universities() {
             </div>
           </div>
         ) : error ? (
-          <div className="bg-card rounded-xl border p-12 text-center shadow-sm">
+          <div className="bg-card rounded-xl border p-12 text-center card-resting">
             <AlertCircle className="size-8 text-destructive mx-auto mb-3" />
             <p className="text-sm text-muted-foreground mb-4">{error}</p>
             <button
@@ -1087,7 +1097,7 @@ export function Universities() {
           </div>
         ) : (
           <>
-            <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+            <div className="bg-card rounded-xl border card-resting overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-muted/50 border-b border-border">
@@ -1107,15 +1117,25 @@ export function Universities() {
                         >
                           <span className="inline-flex items-center gap-1">
                             {label}
-                            {key && (
-                              <span className="text-[10px] leading-none">
-                                {sortKey === key
-                                  ? sortDir === "asc"
-                                    ? " ▲"
-                                    : " ▼"
-                                  : " ⬍"}
-                              </span>
-                            )}
+                            {key &&
+                              (sortKey === key ? (
+                                sortDir === "asc" ? (
+                                  <ArrowUp
+                                    className="size-3"
+                                    aria-hidden="true"
+                                  />
+                                ) : (
+                                  <ArrowDown
+                                    className="size-3"
+                                    aria-hidden="true"
+                                  />
+                                )
+                              ) : (
+                                <ArrowUpDown
+                                  className="size-3 opacity-40"
+                                  aria-hidden="true"
+                                />
+                              ))}
                           </span>
                         </th>
                       ))}
@@ -1159,14 +1179,14 @@ export function Universities() {
                             <StatusBadge status={uni.status} />
                           </td>
                           <td className="px-6 py-4">
-                            <div className="text-sm text-foreground">
+                            <div className="text-sm text-foreground tabular-nums">
                               {uni.currency}{" "}
                               {uni.tuition?.toLocaleString() ?? ":"}
                             </div>
                           </td>
                           <td className="px-6 py-4">
                             <div
-                              className={`text-sm ${urgencyColors[urgency]}`}
+                              className={`text-sm tabular-nums ${urgencyColors[urgency]}`}
                             >
                               {uni.deadline
                                 ? new Date(uni.deadline).toLocaleDateString(
@@ -1184,11 +1204,11 @@ export function Universities() {
                             <div className="flex items-center gap-2">
                               <div className="flex-1 bg-muted rounded-full h-2 max-w-24">
                                 <div
-                                  className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full"
+                                  className="bg-gradient-to-r from-brand-400 to-brand-600 h-2 rounded-full"
                                   style={{ width: `${progress}%` }}
                                 />
                               </div>
-                              <span className="text-xs text-muted-foreground min-w-10">
+                              <span className="text-xs text-muted-foreground min-w-10 tabular-nums">
                                 {Math.round(progress)}%
                               </span>
                             </div>
@@ -1231,7 +1251,7 @@ export function Universities() {
             {/* Pagination */}
             {totalPages > 1 && (
               <div className="hidden sm:flex items-center justify-between mt-4">
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground tabular-nums">
                   Showing {(page - 1) * PAGE_SIZE + 1}–
                   {Math.min(page * PAGE_SIZE, sorted.length)} of {sorted.length}
                 </p>
@@ -1354,7 +1374,7 @@ export function Universities() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.2 }}
                   onClick={() => setSelectedUni(uni)}
-                  className={`bg-card rounded-xl border shadow-sm p-4 cursor-pointer hover:shadow-md transition-shadow ${selectedUni?.id === uni.id ? "ring-2 ring-ring" : ""}`}
+                  className={`bg-card rounded-xl border card-resting p-4 cursor-pointer hover:card-raised transition-shadow duration-200 ${selectedUni?.id === uni.id ? "ring-2 ring-ring" : ""}`}
                 >
                   <div className="flex items-start justify-between gap-2 mb-3">
                     <p className="font-medium text-foreground">{uni.name}</p>
@@ -1362,7 +1382,7 @@ export function Universities() {
                   </div>
                   <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
                     <span>{uni.region}</span>
-                    <span className={urgencyColors[urgency]}>
+                    <span className={`${urgencyColors[urgency]} tabular-nums`}>
                       {uni.deadline
                         ? new Date(uni.deadline).toLocaleDateString("en-US", {
                             month: "short",
@@ -1376,11 +1396,13 @@ export function Universities() {
                     <div>
                       <div className="flex justify-between text-xs text-muted-foreground mb-1">
                         <span>Progress</span>
-                        <span>{Math.round(progress)}%</span>
+                        <span className="tabular-nums">
+                          {Math.round(progress)}%
+                        </span>
                       </div>
                       <div className="w-full bg-muted rounded-full h-1.5">
                         <div
-                          className="bg-gradient-to-r from-blue-500 to-purple-600 h-1.5 rounded-full"
+                          className="bg-gradient-to-r from-brand-400 to-brand-600 h-1.5 rounded-full"
                           style={{ width: `${progress}%` }}
                         />
                       </div>
