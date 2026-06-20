@@ -5,21 +5,14 @@ import { Skeleton } from "../components/ui/skeleton";
 import { toast } from "sonner";
 import { University, Scholarship } from "../types";
 import { StatusBadge } from "../components/StatusBadge";
-import { statusConfig, getDaysUntil } from "../utils/statusConfig";
+import {
+  statusConfig,
+  statusStrong,
+  getDaysUntil,
+} from "../utils/statusConfig";
 import { getUniversities } from "../../services/universities";
 import { getScholarships } from "../../services/scholarships";
 import { useCycle } from "../context/CycleContext";
-
-const STATUS_COLORS: Record<string, string> = {
-  "not-yet-open": "#0EA5E9",
-  "not-started": "#9CA3AF",
-  "in-progress": "#3B82F6",
-  submitted: "#A855F7",
-  accepted: "#10B981",
-  rejected: "#EF4444",
-  waitlisted: "#F59E0B",
-  awarded: "#059669",
-};
 
 // ── Shared shape for both university and scholarship timeline items ────────────
 interface TimelineItem {
@@ -109,7 +102,7 @@ function TimelineView({
 
   if (items.length === 0) {
     return (
-      <div className="bg-card rounded-xl border p-12 text-center shadow-sm">
+      <div className="bg-card rounded-xl border p-12 text-center card-resting">
         <Calendar className="size-12 text-muted-foreground/30 mx-auto mb-4" />
         <p className="text-muted-foreground text-sm">{emptyMessage}</p>
       </div>
@@ -119,7 +112,7 @@ function TimelineView({
   return (
     <div className="space-y-8">
       {/* Gantt chart */}
-      <div className="bg-card rounded-xl border shadow-sm p-6">
+      <div className="bg-card rounded-xl border card-resting p-6">
         <div className="mb-6">
           <h2 className="text-lg font-semibold text-card-foreground mb-1">
             {ganttTitle}
@@ -143,7 +136,10 @@ function TimelineView({
             {items.map((item) => {
               const openPct = toPercent(item.startDate!);
               const widthPct = widthPercent(item.startDate!, item.deadline!);
-              const color = STATUS_COLORS[item.status] ?? "#9CA3AF";
+              const statusKey = item.status as keyof typeof statusStrong;
+              const color =
+                statusStrong[statusKey] ?? "var(--muted-foreground)";
+              const tint = `var(--status-${item.status}-tint, var(--muted))`;
               const config =
                 statusConfig[item.status as keyof typeof statusConfig];
 
@@ -179,11 +175,11 @@ function TimelineView({
                       className="absolute h-full rounded-lg flex items-center px-2 overflow-hidden"
                       style={{
                         left: `${openPct}%`,
-                        backgroundColor: color + "33",
+                        backgroundColor: tint,
                         border: `2px solid ${color}`,
                       }}
                     >
-                      <span className="text-xs font-medium text-foreground truncate">
+                      <span className="text-xs font-medium text-foreground truncate tabular-nums">
                         {new Date(item.startDate!).toLocaleDateString("en-US", {
                           month: "short",
                           day: "numeric",
@@ -229,7 +225,7 @@ function TimelineView({
 
         {/* Legend */}
         <div className="flex flex-wrap gap-3 mt-6 pt-4 border-t border-border">
-          {Object.entries(STATUS_COLORS).map(([status, color]) => (
+          {Object.entries(statusStrong).map(([status, color]) => (
             <div key={status} className="flex items-center gap-1.5">
               <div
                 className="w-3 h-3 rounded-sm"
@@ -251,7 +247,7 @@ function TimelineView({
       {/* Upcoming + Past Deadlines */}
       {allItems.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-card rounded-xl border shadow-sm p-6">
+          <div className="bg-card rounded-xl border card-resting p-6">
             <h2 className="text-lg font-semibold text-card-foreground mb-4">
               Upcoming Deadlines
             </h2>
@@ -281,7 +277,7 @@ function TimelineView({
                       </div>
                       <div className="text-right">
                         <p
-                          className={`text-sm font-semibold ${daysUntil !== null && daysUntil < 14 ? "text-destructive" : daysUntil !== null && daysUntil < 30 ? "text-orange-600" : "text-blue-600"}`}
+                          className={`text-sm font-semibold tabular-nums ${daysUntil !== null && daysUntil < 14 ? "text-destructive" : daysUntil !== null && daysUntil < 30 ? "text-orange-600" : "text-muted-foreground"}`}
                         >
                           {daysUntil} days
                         </p>
@@ -293,7 +289,7 @@ function TimelineView({
             </div>
           </div>
 
-          <div className="bg-card rounded-xl border shadow-sm p-6">
+          <div className="bg-card rounded-xl border card-resting p-6">
             <h2 className="text-lg font-semibold text-card-foreground mb-4">
               Past Deadlines
             </h2>
@@ -489,7 +485,7 @@ export function Timeline() {
                 <button
                   key={v}
                   onClick={() => handleSetView(v)}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${view === v ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${view === v ? "bg-card text-foreground shadow-[0_1px_2px_rgba(15,23,42,0.08)]" : "text-muted-foreground hover:text-foreground"}`}
                 >
                   {v === "all" ? "All" : "Active Only"}
                 </button>
@@ -510,13 +506,13 @@ export function Timeline() {
         <div className="flex gap-1 bg-muted p-1 rounded-lg w-fit">
           <button
             onClick={() => handleSetTab("applications")}
-            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === "applications" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === "applications" ? "bg-card text-foreground shadow-[0_1px_2px_rgba(15,23,42,0.08)]" : "text-muted-foreground hover:text-foreground"}`}
           >
             Application Timeline
           </button>
           <button
             onClick={() => handleSetTab("scholarships")}
-            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === "scholarships" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === "scholarships" ? "bg-card text-foreground shadow-[0_1px_2px_rgba(15,23,42,0.08)]" : "text-muted-foreground hover:text-foreground"}`}
           >
             Scholarship Timeline
           </button>
@@ -524,7 +520,7 @@ export function Timeline() {
 
         {loading ? (
           <div className="space-y-6">
-            <div className="bg-card rounded-xl border shadow-sm p-6 space-y-5">
+            <div className="bg-card rounded-xl border card-resting p-6 space-y-5">
               <Skeleton className="h-6 w-56 mb-2" />
               <Skeleton className="h-4 w-72 mb-6" />
               {Array.from({ length: 5 }).map((_, i) => (
@@ -535,13 +531,13 @@ export function Timeline() {
               ))}
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-              <div className="bg-card rounded-xl border shadow-sm p-5 space-y-3">
+              <div className="bg-card rounded-xl border card-resting p-5 space-y-3">
                 <Skeleton className="h-5 w-36 mb-4" />
                 {Array.from({ length: 4 }).map((_, i) => (
                   <Skeleton key={i} className="h-14 w-full rounded-lg" />
                 ))}
               </div>
-              <div className="bg-card rounded-xl border shadow-sm p-5 space-y-3">
+              <div className="bg-card rounded-xl border card-resting p-5 space-y-3">
                 <Skeleton className="h-5 w-36 mb-4" />
                 {Array.from({ length: 4 }).map((_, i) => (
                   <Skeleton key={i} className="h-14 w-full rounded-lg" />
@@ -550,7 +546,7 @@ export function Timeline() {
             </div>
           </div>
         ) : error ? (
-          <div className="bg-card rounded-xl border p-12 text-center shadow-sm">
+          <div className="bg-card rounded-xl border p-12 text-center card-resting">
             <AlertCircle className="size-8 text-destructive mx-auto mb-3" />
             <p className="text-sm text-muted-foreground mb-4">{error}</p>
             <button
