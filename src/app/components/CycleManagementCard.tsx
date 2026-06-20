@@ -112,7 +112,7 @@ function CycleFormModal({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 8 }}
         transition={{ duration: 0.2, ease: "easeOut" }}
-        className="bg-card rounded-xl border shadow-xl w-full sm:max-w-md sm:max-h-[90vh] h-full sm:h-auto overflow-y-auto"
+        className="bg-card rounded-xl border card-raised w-full sm:max-w-md sm:max-h-[90vh] h-full sm:h-auto overflow-y-auto"
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <h2 className="text-lg font-semibold text-card-foreground">
@@ -322,7 +322,7 @@ export function CycleManagementCard() {
   };
 
   return (
-    <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+    <div className="bg-card rounded-xl border card-resting overflow-hidden">
       <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-border">
         <div className="flex items-center gap-3">
           <CalendarRange
@@ -388,7 +388,13 @@ export function CycleManagementCard() {
                       {cycle.name}
                     </p>
                     {cycle.isActive && (
-                      <span className="inline-flex items-center gap-1 rounded-md border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 px-2 py-0.5 text-xs font-medium whitespace-nowrap">
+                      <span
+                        className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium whitespace-nowrap"
+                        style={{
+                          color: "var(--status-accepted-text)",
+                          backgroundColor: "var(--status-accepted-tint)",
+                        }}
+                      >
                         <CheckCircle2 className="size-3" aria-hidden="true" />
                         Active
                       </span>
