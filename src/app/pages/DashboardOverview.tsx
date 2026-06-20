@@ -90,6 +90,29 @@ export function DashboardOverview() {
     [universities],
   );
 
+  const cycleBreakdown = useMemo(() => {
+    if (selectedCycleId !== null) return [];
+    return cycles
+      .map((cycle) => {
+        const cycleUnis = universities.filter((u) => u.cycleId === cycle.id);
+        const cycleSchols = scholarships.filter((s) => s.cycleId === cycle.id);
+        return {
+          cycle,
+          total: cycleUnis.length,
+          accepted: cycleUnis.filter((u) => u.status === "accepted").length,
+          rejected: cycleUnis.filter((u) => u.status === "rejected").length,
+          pending: cycleUnis.filter(
+            (u) =>
+              u.status !== "accepted" &&
+              u.status !== "rejected" &&
+              u.status !== "waitlisted",
+          ).length,
+          scholarshipCount: cycleSchols.length,
+        };
+      })
+      .filter((row) => row.total > 0 || row.scholarshipCount > 0);
+  }, [cycles, universities, scholarships, selectedCycleId]);
+
   const pieData = [
     { name: "Not Yet Open", value: stats.notYetOpen, color: "#0EA5E9" },
     { name: "Not Started", value: stats.notStarted, color: "#9CA3AF" },
@@ -353,6 +376,77 @@ export function DashboardOverview() {
           </div>
         ) : (
           <>
+            {/* Per-cycle breakdown, All Cycles view only */}
+            {cycleBreakdown.length > 1 && (
+              <div className="bg-card rounded-xl border shadow-sm overflow-hidden mb-4 sm:mb-6">
+                <div className="px-6 py-4 border-b border-border">
+                  <h2 className="text-base font-semibold text-card-foreground">
+                    Breakdown by Cycle
+                  </h2>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border text-muted-foreground text-xs uppercase tracking-wide">
+                        <th className="text-left px-6 py-2.5 font-medium">
+                          Cycle
+                        </th>
+                        <th className="text-right px-4 py-2.5 font-medium">
+                          Universities
+                        </th>
+                        <th className="text-right px-4 py-2.5 font-medium">
+                          Pending
+                        </th>
+                        <th className="text-right px-4 py-2.5 font-medium">
+                          Accepted
+                        </th>
+                        <th className="text-right px-4 py-2.5 font-medium">
+                          Rejected
+                        </th>
+                        <th className="text-right px-6 py-2.5 font-medium">
+                          Scholarships
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {cycleBreakdown.map((row) => (
+                        <tr
+                          key={row.cycle.id}
+                          className="border-b border-border last:border-0"
+                        >
+                          <td className="px-6 py-3 font-medium text-foreground">
+                            <span className="inline-flex items-center gap-2">
+                              {row.cycle.name}
+                              {row.cycle.isActive && (
+                                <span className="text-[10px] uppercase tracking-wide text-emerald-600 font-semibold">
+                                  Active
+                                </span>
+                              )}
+                            </span>
+                          </td>
+                          <td className="text-right px-4 py-3 text-foreground">
+                            {row.total}
+                          </td>
+                          <td className="text-right px-4 py-3 text-muted-foreground">
+                            {row.pending}
+                          </td>
+                          <td className="text-right px-4 py-3 text-green-600">
+                            {row.accepted}
+                          </td>
+                          <td className="text-right px-4 py-3 text-destructive">
+                            {row.rejected}
+                          </td>
+                          <td className="text-right px-6 py-3 text-foreground">
+                            {row.scholarshipCount}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
             {/* KPI Cards */}
             <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-4">
               <KPICard
