@@ -38,8 +38,10 @@ import {
 import { getUniversities } from "../../services/universities";
 import { getScholarships } from "../../services/scholarships";
 import { University, Scholarship, FX_TO_GHS } from "../types";
+import { useCycle } from "../context/CycleContext";
 
 export function DashboardOverview() {
+  const { selectedCycleId, cycles, loading: cyclesLoading } = useCycle();
   const [universities, setUniversities] = useState<University[]>([]);
   const [scholarships, setScholarships] = useState<Scholarship[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,9 +51,10 @@ export function DashboardOverview() {
     setLoading(true);
     setError(null);
     try {
+      // selectedCycleId of null means "All Cycles", so omit the filter
       const [unis, schols] = await Promise.all([
-        getUniversities(),
-        getScholarships(),
+        getUniversities(selectedCycleId ?? undefined),
+        getScholarships(selectedCycleId ?? undefined),
       ]);
       setUniversities(unis);
       setScholarships(schols);
@@ -61,10 +64,16 @@ export function DashboardOverview() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedCycleId]);
   useEffect(() => {
+    if (cyclesLoading) return;
     load();
-  }, [load]);
+  }, [load, cyclesLoading]);
+
+  const selectedCycleName = useMemo(() => {
+    if (!selectedCycleId) return "All Cycles";
+    return cycles.find((c) => c.id === selectedCycleId)?.name ?? "All Cycles";
+  }, [cycles, selectedCycleId]);
 
   const stats = useMemo(
     () => ({
@@ -249,6 +258,12 @@ export function DashboardOverview() {
             <p className="text-sm text-muted-foreground mt-1">
               Track your application progress and upcoming deadlines
             </p>
+            <p className="text-xs text-muted-foreground mt-1.5">
+              Viewing{" "}
+              <span className="font-medium text-foreground">
+                {selectedCycleName}
+              </span>
+            </p>
           </div>
           <button
             onClick={load}
@@ -304,7 +319,23 @@ export function DashboardOverview() {
           </div>
         )}
 
-        {universities.length === 0 ? (
+        {!cyclesLoading && cycles.length === 0 ? (
+          <div className="bg-card rounded-xl border p-16 text-center shadow-sm">
+            <GraduationCap className="size-12 text-muted-foreground/30 mx-auto mb-4" />
+            <h2 className="text-lg font-medium text-foreground mb-2">
+              No application cycles yet
+            </h2>
+            <p className="text-sm text-muted-foreground mb-6">
+              Create a cycle in Settings to start tracking applications.
+            </p>
+            <a
+              href="/settings"
+              className="inline-flex px-4 py-2 bg-primary text-primary-foreground text-sm rounded-lg hover:bg-primary/90 transition"
+            >
+              Go to Settings
+            </a>
+          </div>
+        ) : universities.length === 0 ? (
           <div className="bg-card rounded-xl border p-16 text-center shadow-sm">
             <GraduationCap className="size-12 text-muted-foreground/30 mx-auto mb-4" />
             <h2 className="text-lg font-medium text-foreground mb-2">
