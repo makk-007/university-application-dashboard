@@ -187,6 +187,48 @@ export async function deleteScholarship(id: string): Promise<void> {
   if (error) throw new Error(parseSupabaseError(error));
 }
 
+/**
+ * Duplicate a scholarship into another cycle as a fully independent record.
+ * Copies name, amount, currency, coverage, dates, link, notes, and checklist
+ * items (reset to incomplete). Status resets to "not-started" since a
+ * decision from a previous cycle should never carry forward. Eligible
+ * university links are not copied: they reference university rows scoped to
+ * the source cycle and would not resolve sensibly against the target cycle's
+ * universities.
+ */
+export async function duplicateScholarship(
+  id: string,
+  targetCycleId: string | null,
+): Promise<Scholarship> {
+  const source = await getScholarship(id);
+
+  const created = await createScholarship({
+    cycleId: targetCycleId,
+    name: source.name,
+    status: "not-started",
+    amount: source.amount,
+    currency: source.currency,
+    coverage: source.coverage,
+    notes: source.notes ?? "",
+    link: source.link ?? "",
+    startDate: source.startDate ?? null,
+    deadline: source.deadline ?? null,
+    eligibleUniversities: [],
+  });
+
+  if (source.checklist.length > 0) {
+    await supabase.from("scholarship_checklist").insert(
+      source.checklist.map((item) => ({
+        scholarship_id: created.id,
+        item: item.item,
+        completed: false,
+      })),
+    );
+  }
+
+  return getScholarship(created.id);
+}
+
 // ── University Links ──────────────────────────────────────────────────────────
 
 export async function setScholarshipUniversities(
