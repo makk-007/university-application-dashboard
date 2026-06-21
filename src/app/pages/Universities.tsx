@@ -20,6 +20,7 @@ import {
 import { toast } from "sonner";
 import { University, ApplicationStatus } from "../types";
 import { useCycle } from "../context/CycleContext";
+import { useUndoableDelete } from "../context/UndoableDeleteContext";
 import { ConfirmDeleteModal } from "../components/ConfirmDeleteModal";
 import { DuplicateToCycleModal } from "../components/DuplicateToCycleModal";
 import { StatusBadge } from "../components/StatusBadge";
@@ -339,6 +340,7 @@ function UniversityDetailDrawer({
   onDuplicated: (u: University) => void;
 }) {
   const { selectedCycleId, cycles } = useCycle();
+  const { deleteWithUndo } = useUndoableDelete();
   const cycleName = university.cycleId
     ? cycles.find((c) => c.id === university.cycleId)?.name
     : null;
@@ -464,28 +466,34 @@ function UniversityDetailDrawer({
     }
   };
 
-  const handleDeleteCheck = async (itemId: string) => {
-    try {
-      await deleteChecklistItem(itemId);
-      const updated = {
-        ...uni,
-        checklist: uni.checklist.filter((c) => c.id !== itemId),
-      };
-      setUni(updated);
-      onUpdated(updated);
-    } catch (e: any) {
-      toast.error("Failed to remove requirement", { description: e.message });
-    }
-  };
+  const handleDeleteCheck = (itemId: string) => {
+    const removedItem = uni.checklist.find((c) => c.id === itemId);
+    if (!removedItem) return;
+    const beforeChecklist = uni.checklist;
 
-  const handleDelete = async () => {
-    try {
-      await deleteUniversity(uni.id);
-      toast.success("University deleted", { description: uni.name });
-      onDeleted(uni.id);
-    } catch (e: any) {
-      toast.error("Failed to delete university", { description: e.message });
-    }
+    deleteWithUndo({
+      id: itemId,
+      label: "Requirement removed",
+      description: removedItem.item,
+      onRemoveLocally: () => {
+        const updated = {
+          ...uni,
+          checklist: uni.checklist.filter((c) => c.id !== itemId),
+        };
+        setUni(updated);
+        onUpdated(updated);
+      },
+      onRestoreLocally: () => {
+        const updated = { ...uni, checklist: beforeChecklist };
+        setUni(updated);
+        onUpdated(updated);
+      },
+      performDelete: () => deleteChecklistItem(itemId),
+      onDeleteFailed: (e) =>
+        toast.error("Failed to remove requirement", {
+          description: e.message,
+        }),
+    });
   };
 
   const handleDuplicate = async (targetCycleId: string | null) => {
@@ -830,9 +838,12 @@ function UniversityDetailDrawer({
         <ConfirmDeleteModal
           itemName={uni.name}
           itemType="university"
+          linkedCount={uni.scholarships?.length ?? 0}
+          linkedLabel="scholarships"
           onConfirm={() => {
             setShowDeleteModal(false);
-            handleDelete();
+            onDeleted(uni.id);
+            onClose();
           }}
           onCancel={() => setShowDeleteModal(false)}
         />
@@ -860,6 +871,7 @@ export function Universities() {
     selectCycle,
     loading: cyclesLoading,
   } = useCycle();
+  const { deleteWithUndo } = useUndoableDelete();
   const [universities, setUniversities] = useState<University[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -986,8 +998,27 @@ export function Universities() {
   };
 
   const handleDeleted = (id: string) => {
-    setUniversities((prev) => prev.filter((u) => u.id !== id));
-    if (selectedUni?.id === id) setSelectedUni(null);
+    const removedUni = universities.find((u) => u.id === id);
+    if (!removedUni) return;
+
+    deleteWithUndo({
+      id,
+      label: "University deleted",
+      description: removedUni.name,
+      onRemoveLocally: () => {
+        setUniversities((prev) => prev.filter((u) => u.id !== id));
+        setSelectedUni(null);
+      },
+      onRestoreLocally: () => {
+        setUniversities((prev) => [...prev, removedUni]);
+        setSelectedUni(removedUni);
+      },
+      performDelete: () => deleteUniversity(id),
+      onDeleteFailed: (e) =>
+        toast.error("Failed to delete university", {
+          description: e.message,
+        }),
+    });
   };
 
   const handleDuplicated = (duplicate: University) => {
