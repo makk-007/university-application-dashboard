@@ -940,9 +940,11 @@ export function Universities() {
   const filtered = useMemo(
     () =>
       universities.filter((u) => {
-        const matchSearch = u.name
-          .toLowerCase()
-          .includes(searchQuery.toLowerCase());
+        const query = searchQuery.toLowerCase();
+        const matchSearch =
+          !query ||
+          u.name.toLowerCase().includes(query) ||
+          (u.notes ?? "").toLowerCase().includes(query);
         const matchStatus = statusFilter === "all" || u.status === statusFilter;
         const matchRegion = regionFilter === "all" || u.region === regionFilter;
         return matchSearch && matchStatus && matchRegion;

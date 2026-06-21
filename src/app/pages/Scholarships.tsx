@@ -14,6 +14,9 @@ import {
   Filter,
   TrendingUp,
   Copy,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -960,12 +963,29 @@ export function Scholarships() {
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | "all">(
     "all",
   );
+  const [coverageFilter, setCoverageFilter] = useState<
+    (typeof COVERAGE_OPTIONS)[number] | "all"
+  >("all");
   const [showAddModal, setShowAddModal] = useState(false);
   const [selected, setSelected] = useState<Scholarship | null>(null);
   const [pendingOpenId, setPendingOpenId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"list" | "funding">("list");
+  const [sortKey, setSortKey] = useState<
+    "name" | "amount" | "deadline" | "coverage"
+  >("name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 9;
+
+  const handleSort = (key: typeof sortKey) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+    setPage(1);
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1016,23 +1036,44 @@ export function Scholarships() {
   const filtered = useMemo(
     () =>
       scholarships.filter((s) => {
-        const matchSearch = s.name
-          .toLowerCase()
-          .includes(searchQuery.toLowerCase());
+        const query = searchQuery.toLowerCase();
+        const matchSearch =
+          !query ||
+          s.name.toLowerCase().includes(query) ||
+          (s.notes ?? "").toLowerCase().includes(query);
         const matchStatus = statusFilter === "all" || s.status === statusFilter;
-        return matchSearch && matchStatus;
+        const matchCoverage =
+          coverageFilter === "all" || s.coverage === coverageFilter;
+        return matchSearch && matchStatus && matchCoverage;
       }),
-    [scholarships, searchQuery, statusFilter],
+    [scholarships, searchQuery, statusFilter, coverageFilter],
   );
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+
+  const sorted = useMemo(() => {
+    return [...filtered].sort((a, b) => {
+      let cmp = 0;
+      if (sortKey === "name") cmp = a.name.localeCompare(b.name);
+      else if (sortKey === "amount") cmp = (a.amount ?? 0) - (b.amount ?? 0);
+      else if (sortKey === "coverage")
+        cmp = a.coverage.localeCompare(b.coverage);
+      else if (sortKey === "deadline") {
+        cmp =
+          new Date(a.deadline ?? 0).getTime() -
+          new Date(b.deadline ?? 0).getTime();
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+  }, [filtered, sortKey, sortDir]);
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const paginated = useMemo(
-    () => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
-    [filtered, page],
+    () => sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [sorted, page],
   );
 
   useEffect(() => {
     setPage(1);
-  }, [searchQuery, statusFilter]);
+  }, [searchQuery, statusFilter, coverageFilter]);
 
   const fundingData = useMemo(
     () =>
@@ -1225,6 +1266,60 @@ export function Scholarships() {
                       </option>
                     ))}
                   </select>
+                </div>
+                <div>
+                  <select
+                    value={coverageFilter}
+                    onChange={(e) =>
+                      setCoverageFilter(
+                        e.target.value as
+                          | (typeof COVERAGE_OPTIONS)[number]
+                          | "all",
+                      )
+                    }
+                    className={`${selectCls} w-auto pr-8`}
+                  >
+                    <option value="all">All Coverage</option>
+                    {COVERAGE_OPTIONS.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <ArrowUpDown className="size-4 text-muted-foreground" />
+                  <select
+                    value={sortKey}
+                    onChange={(e) =>
+                      handleSort(e.target.value as typeof sortKey)
+                    }
+                    className={`${selectCls} w-auto pr-8`}
+                  >
+                    <option value="name">Name</option>
+                    <option value="amount">Amount</option>
+                    <option value="deadline">Deadline</option>
+                    <option value="coverage">Coverage</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSortDir((d) => (d === "asc" ? "desc" : "asc"))
+                    }
+                    aria-label={
+                      sortDir === "asc" ? "Sort descending" : "Sort ascending"
+                    }
+                    title={
+                      sortDir === "asc" ? "Sort descending" : "Sort ascending"
+                    }
+                    className="p-2 text-muted-foreground hover:text-foreground bg-secondary hover:bg-secondary/80 rounded-lg transition-colors"
+                  >
+                    {sortDir === "asc" ? (
+                      <ArrowUp className="size-4" aria-hidden="true" />
+                    ) : (
+                      <ArrowDown className="size-4" aria-hidden="true" />
+                    )}
+                  </button>
                 </div>
               </div>
             </div>
