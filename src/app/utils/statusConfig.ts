@@ -8,6 +8,7 @@ import {
   XCircle,
   Hourglass,
   Trophy,
+  Ban,
   LucideIcon,
 } from "lucide-react";
 
@@ -77,6 +78,13 @@ export const statusConfig: Record<
     borderColor: "border-transparent",
     icon: Trophy,
   },
+  withdrawn: {
+    label: "Withdrawn",
+    color: "text-[var(--status-withdrawn-text)]",
+    bgColor: "bg-[var(--status-withdrawn-tint)]",
+    borderColor: "border-transparent",
+    icon: Ban,
+  },
 };
 
 /** Strong/icon shade per status : used for KPI icon tints and chart fills,
@@ -90,6 +98,7 @@ export const statusStrong: Record<ApplicationStatus, string> = {
   rejected: "var(--status-rejected-strong)",
   waitlisted: "var(--status-waitlisted-strong)",
   awarded: "var(--status-awarded-strong)",
+  withdrawn: "var(--status-withdrawn-strong)",
 };
 
 export const ALL_STATUSES: ApplicationStatus[] = [
@@ -101,6 +110,7 @@ export const ALL_STATUSES: ApplicationStatus[] = [
   "rejected",
   "waitlisted",
   "awarded",
+  "withdrawn",
 ];
 
 /** Statuses applicable to university applications (excludes 'awarded', which is scholarship-only). */
@@ -112,6 +122,7 @@ export const UNI_STATUSES: ApplicationStatus[] = [
   "accepted",
   "rejected",
   "waitlisted",
+  "withdrawn",
 ];
 
 export const getDeadlineUrgency = (

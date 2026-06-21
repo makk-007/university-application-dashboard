@@ -6,7 +6,8 @@ export type ApplicationStatus =
   | "accepted"
   | "rejected"
   | "waitlisted"
-  | "awarded";
+  | "awarded"
+  | "withdrawn";
 
 export interface ApplicationCycle {
   id: string;

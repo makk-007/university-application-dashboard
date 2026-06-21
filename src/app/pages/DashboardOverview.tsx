@@ -107,7 +107,8 @@ export function DashboardOverview() {
             (u) =>
               u.status !== "accepted" &&
               u.status !== "rejected" &&
-              u.status !== "waitlisted",
+              u.status !== "waitlisted" &&
+              u.status !== "withdrawn",
           ).length,
           scholarshipCount: cycleSchols.length,
         };

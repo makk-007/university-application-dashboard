@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS universities (
   start_date DATE,
   deadline DATE,
   status TEXT NOT NULL DEFAULT 'not-started'
-    CHECK (status IN ('not-yet-open','not-started','in-progress','submitted','accepted','rejected','waitlisted')),
+    CHECK (status IN ('not-yet-open','not-started','in-progress','submitted','accepted','rejected','waitlisted','withdrawn')),
   notes TEXT DEFAULT '',
   application_link TEXT DEFAULT '',
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS scholarships (
   coverage TEXT DEFAULT 'Full Scholarship'
     CHECK (coverage IN ('Full Scholarship','Tuition Only','Stipend Only','Tuition + Stipend')),
   status TEXT NOT NULL DEFAULT 'not-started'
-    CHECK (status IN ('not-yet-open','not-started','in-progress','submitted','accepted','rejected','awarded','waitlisted')),
+    CHECK (status IN ('not-yet-open','not-started','in-progress','submitted','accepted','rejected','awarded','waitlisted','withdrawn')),
   notes TEXT DEFAULT '',
   link TEXT DEFAULT '',
   start_date DATE,
