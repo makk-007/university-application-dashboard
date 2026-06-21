@@ -191,17 +191,20 @@ export function DashboardOverview() {
     },
   ].filter((d) => d.count > 0);
 
-  // ── Upcoming deadlines : universities + scholarships (user's addition) ──────
+  // ── Upcoming deadlines : universities + scholarships ────────────────────────
+  // Strict rule: only "In Progress" items with a deadline within the next 15
+  // days (inclusive) qualify. Not yet open, not started, submitted, accepted,
+  // rejected, waitlisted, awarded, and anything past 15 days out are excluded.
+  const UPCOMING_DEADLINE_WINDOW_DAYS = 15;
   const upcomingDeadlines = useMemo(() => {
-    const today = new Date();
+    const isWithinWindow = (deadline: string | null | undefined) => {
+      const days = getDaysUntil(deadline ?? null);
+      return (
+        days !== null && days >= 0 && days <= UPCOMING_DEADLINE_WINDOW_DAYS
+      );
+    };
     const uniDeadlines = universities
-      .filter(
-        (u) =>
-          u.deadline &&
-          new Date(u.deadline) > today &&
-          u.status !== "accepted" &&
-          u.status !== "rejected",
-      )
+      .filter((u) => u.status === "in-progress" && isWithinWindow(u.deadline))
       .map((u) => ({
         id: u.id,
         name: u.name,
@@ -210,13 +213,7 @@ export function DashboardOverview() {
         type: "university" as const,
       }));
     const scholDeadlines = scholarships
-      .filter(
-        (s) =>
-          s.deadline &&
-          new Date(s.deadline) > today &&
-          s.status !== "awarded" &&
-          s.status !== "rejected",
-      )
+      .filter((s) => s.status === "in-progress" && isWithinWindow(s.deadline))
       .map((s) => ({
         id: s.id,
         name: s.name,
@@ -224,12 +221,9 @@ export function DashboardOverview() {
         status: s.status,
         type: "scholarship" as const,
       }));
-    return [...uniDeadlines, ...scholDeadlines]
-      .sort(
-        (a, b) =>
-          new Date(a.deadline).getTime() - new Date(b.deadline).getTime(),
-      )
-      .slice(0, 8);
+    return [...uniDeadlines, ...scholDeadlines].sort(
+      (a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime(),
+    );
   }, [universities, scholarships]);
 
   const openingSoon = useMemo(() => {
@@ -375,10 +369,7 @@ export function DashboardOverview() {
 
       <div className="p-4 sm:p-8 space-y-6 sm:space-y-8">
         {/* Alert strip */}
-        {(openingSoon.length > 0 ||
-          upcomingDeadlines.some(
-            (d) => (getDaysUntil(d.deadline) ?? 999) <= 15,
-          )) && (
+        {(openingSoon.length > 0 || upcomingDeadlines.length > 0) && (
           <div className="space-y-2">
             {openingSoon.map((u) => (
               <div
@@ -395,24 +386,22 @@ export function DashboardOverview() {
                 </span>
               </div>
             ))}
-            {upcomingDeadlines
-              .filter((d) => (getDaysUntil(d.deadline) ?? 999) <= 15)
-              .map((d) => (
-                <div
-                  key={d.id}
-                  className="flex items-center gap-3 bg-orange-500/10 border border-orange-500/20 rounded-lg px-4 py-3 text-sm"
-                >
-                  <AlertCircle
-                    className="size-4 text-orange-600 dark:text-orange-400 shrink-0"
-                    aria-hidden="true"
-                  />
-                  <span className="text-orange-700 dark:text-orange-300">
-                    ⚠️ <strong>{d.name}</strong> (
-                    {d.type === "scholarship" ? "scholarship" : "university"})
-                    deadline in <strong>{getDaysUntil(d.deadline)} days</strong>
-                  </span>
-                </div>
-              ))}
+            {upcomingDeadlines.map((d) => (
+              <div
+                key={`${d.type}-${d.id}`}
+                className="flex items-center gap-3 bg-orange-500/10 border border-orange-500/20 rounded-lg px-4 py-3 text-sm"
+              >
+                <AlertCircle
+                  className="size-4 text-orange-600 dark:text-orange-400 shrink-0"
+                  aria-hidden="true"
+                />
+                <span className="text-orange-700 dark:text-orange-300">
+                  ⚠️ <strong>{d.name}</strong> (
+                  {d.type === "scholarship" ? "scholarship" : "university"})
+                  deadline in <strong>{getDaysUntil(d.deadline)} days</strong>
+                </span>
+              </div>
+            ))}
           </div>
         )}
 
@@ -725,11 +714,12 @@ export function DashboardOverview() {
                     Upcoming Deadlines
                   </h2>
                   <p className="text-xs text-muted-foreground mb-4">
-                    Universities and scholarships
+                    In Progress, due within 15 days
                   </p>
                   {upcomingDeadlines.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
-                      No upcoming deadlines
+                      No applications in progress are due within the next 15
+                      days.
                     </p>
                   ) : (
                     <div className="space-y-2.5">
