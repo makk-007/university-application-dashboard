@@ -150,41 +150,50 @@ export function Auth({
   return (
     <div className="min-h-screen bg-background lg:grid lg:grid-cols-2">
       {/* ── Left brand panel : desktop only, purely presentational ────── */}
-      <div className="hidden lg:flex flex-col justify-between bg-gradient-to-br from-brand-800 to-brand-600 text-white p-12 relative overflow-hidden">
+      {/* Fixed hex gradient (not the brand-800/600 tokens, which intentionally
+          flip to light shades in dark mode for text/icon use elsewhere). A
+          hero panel background should stay the same regardless of theme. */}
+      <div
+        className="hidden lg:flex flex-col justify-between text-white p-14 relative overflow-hidden"
+        style={{
+          backgroundImage:
+            "linear-gradient(135deg, #0c4f63 0%, #146b87 55%, #1c96c1 100%)",
+        }}
+      >
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-white/15 rounded-xl flex items-center justify-center backdrop-blur-sm">
-            <GraduationCap className="size-5" aria-hidden="true" />
+          <div className="w-11 h-11 bg-white/15 rounded-xl flex items-center justify-center backdrop-blur-sm">
+            <GraduationCap className="size-6" aria-hidden="true" />
           </div>
-          <span className="font-semibold tracking-tight">
+          <span className="text-lg font-semibold tracking-tight">
             Application Tracker
           </span>
         </div>
 
-        <div className="max-w-md">
-          <h1 className="text-3xl font-semibold leading-tight mb-3">
+        <div className="max-w-lg">
+          <h1 className="text-4xl font-semibold leading-tight mb-4">
             Manage your applications in one place
           </h1>
-          <p className="text-white/75 text-sm mb-10">
+          <p className="text-white/80 text-base mb-12">
             Track universities, scholarships, deadlines, and requirements across
             every application cycle.
           </p>
 
-          <div className="space-y-5">
+          <div className="space-y-6">
             {VALUE_PROPS.map(({ icon: Icon, title, description }) => (
-              <div key={title} className="flex items-start gap-3">
-                <div className="w-8 h-8 bg-white/15 rounded-lg flex items-center justify-center shrink-0 mt-0.5 backdrop-blur-sm">
-                  <Icon className="size-4" aria-hidden="true" />
+              <div key={title} className="flex items-start gap-4">
+                <div className="w-10 h-10 bg-white/15 rounded-lg flex items-center justify-center shrink-0 mt-0.5 backdrop-blur-sm">
+                  <Icon className="size-5" aria-hidden="true" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium">{title}</p>
-                  <p className="text-xs text-white/65 mt-0.5">{description}</p>
+                  <p className="text-base font-medium">{title}</p>
+                  <p className="text-sm text-white/70 mt-0.5">{description}</p>
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        <p className="text-xs text-white/50">
+        <p className="text-sm text-white/60">
           Your data stays private and scoped to your account.
         </p>
 
@@ -200,7 +209,7 @@ export function Auth({
       </div>
 
       {/* ── Right panel : sign in / sign up form ───────────────────────── */}
-      <div className="flex items-center justify-center p-4 relative min-h-screen lg:min-h-0">
+      <div className="flex items-center justify-center p-4 sm:p-8 relative min-h-screen lg:min-h-0">
         <button
           onClick={toggleTheme}
           aria-label={
@@ -218,7 +227,7 @@ export function Auth({
           )}
         </button>
 
-        <div className="w-full max-w-sm">
+        <div className="w-full max-w-md">
           <div className="text-center mb-8 lg:hidden">
             <div className="inline-flex items-center justify-center w-12 h-12 bg-primary rounded-xl mb-4">
               <GraduationCap
@@ -234,7 +243,7 @@ export function Auth({
             </p>
           </div>
 
-          <div className="bg-card rounded-xl border card-resting p-6">
+          <div className="bg-card rounded-xl border card-resting p-8">
             {mode === "forgot" && (
               <button
                 onClick={() => switchMode("login")}
@@ -245,7 +254,7 @@ export function Auth({
               </button>
             )}
 
-            <h2 className="text-lg font-semibold text-card-foreground mb-5">
+            <h2 className="text-xl font-semibold text-card-foreground mb-6">
               {mode === "login"
                 ? "Sign in to your account"
                 : mode === "signup"
@@ -274,7 +283,7 @@ export function Auth({
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-5">
               {/* Email */}
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1.5">
@@ -282,7 +291,7 @@ export function Auth({
                 </label>
                 <div className="relative">
                   <Mail
-                    className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground"
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground"
                     aria-hidden="true"
                   />
                   <input
@@ -291,7 +300,7 @@ export function Auth({
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@example.com"
-                    className={`${inputCls} pl-9`}
+                    className={`${inputCls} h-11 text-base pl-10`}
                   />
                 </div>
               </div>
@@ -315,7 +324,7 @@ export function Auth({
                   </div>
                   <div className="relative">
                     <Lock
-                      className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground"
+                      className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground"
                       aria-hidden="true"
                     />
                     <input
@@ -325,7 +334,7 @@ export function Auth({
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
-                      className={`${inputCls} pl-9 pr-9`}
+                      className={`${inputCls} h-11 text-base pl-10 pr-10`}
                     />
                     <button
                       type="button"
@@ -333,7 +342,7 @@ export function Auth({
                       aria-label={
                         showPassword ? "Hide password" : "Show password"
                       }
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                     >
                       {showPassword ? (
                         <EyeOff className="size-4" aria-hidden="true" />
@@ -381,7 +390,7 @@ export function Auth({
                   </label>
                   <div className="relative">
                     <Lock
-                      className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground"
+                      className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground"
                       aria-hidden="true"
                     />
                     <input
@@ -390,7 +399,7 @@ export function Auth({
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="••••••••"
-                      className={`${inputCls} pl-9 pr-9 ${passwordMismatch ? "border-destructive focus-visible:border-destructive" : ""}`}
+                      className={`${inputCls} h-11 text-base pl-10 pr-10 ${passwordMismatch ? "border-destructive focus-visible:border-destructive" : ""}`}
                     />
                     <button
                       type="button"
@@ -398,7 +407,7 @@ export function Auth({
                       aria-label={
                         showConfirm ? "Hide password" : "Show password"
                       }
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                     >
                       {showConfirm ? (
                         <EyeOff className="size-4" aria-hidden="true" />
@@ -418,7 +427,7 @@ export function Auth({
               <button
                 type="submit"
                 disabled={loading || passwordMismatch}
-                className="w-full h-9 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors mt-2"
+                className="w-full h-11 bg-primary text-primary-foreground rounded-md text-base font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors mt-2"
               >
                 {loading
                   ? mode === "login"
