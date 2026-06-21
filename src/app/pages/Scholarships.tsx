@@ -1405,32 +1405,44 @@ export function Scholarships() {
                   <p className="text-sm text-muted-foreground mb-4">
                     All scholarship amounts converted to GHS
                   </p>
-                  <ResponsiveContainer width="100%" height={300}>
+                  <ResponsiveContainer
+                    width="100%"
+                    height={Math.max(300, fundingData.length * 36)}
+                  >
                     <BarChart
                       data={fundingData}
-                      margin={{ top: 10, right: 10, left: 20, bottom: 60 }}
+                      layout="vertical"
+                      margin={{ top: 10, right: 24, left: 10, bottom: 10 }}
                     >
                       <CartesianGrid
                         strokeDasharray="3 3"
                         className="stroke-border"
                       />
-                      <XAxis
+                      <XAxis type="number" tick={{ fontSize: 11 }} />
+                      <YAxis
+                        type="category"
                         dataKey="name"
                         tick={{ fontSize: 11 }}
-                        angle={-35}
-                        textAnchor="end"
+                        width={150}
                       />
-                      <YAxis tick={{ fontSize: 11 }} />
                       <Tooltip
                         formatter={(v) => [
                           `GHS ${Number(v).toLocaleString()}`,
                           "Funding",
                         ]}
+                        contentStyle={{
+                          backgroundColor: "var(--popover)",
+                          color: "var(--popover-foreground)",
+                          border: "1px solid var(--border)",
+                          borderRadius: "var(--radius-md)",
+                        }}
+                        itemStyle={{ color: "var(--popover-foreground)" }}
+                        labelStyle={{ color: "var(--popover-foreground)" }}
                       />
                       <Bar
                         dataKey="value"
                         fill="var(--brand-600)"
-                        radius={[6, 6, 0, 0]}
+                        radius={[0, 6, 6, 0]}
                       />
                     </BarChart>
                   </ResponsiveContainer>
