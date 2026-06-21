@@ -26,6 +26,7 @@ import {
   FX_TO_GHS,
 } from "../types";
 import { useCycle } from "../context/CycleContext";
+import { useUndoableDelete } from "../context/UndoableDeleteContext";
 import { ConfirmDeleteModal } from "../components/ConfirmDeleteModal";
 import { DuplicateToCycleModal } from "../components/DuplicateToCycleModal";
 import { StatusBadge } from "../components/StatusBadge";
@@ -388,6 +389,7 @@ function ScholarshipDetailDrawer({
   onDuplicated: (s: Scholarship) => void;
 }) {
   const { selectedCycleId, cycles } = useCycle();
+  const { deleteWithUndo } = useUndoableDelete();
   const cycleName = scholarship.cycleId
     ? cycles.find((c) => c.id === scholarship.cycleId)?.name
     : null;
@@ -534,27 +536,34 @@ function ScholarshipDetailDrawer({
       toast.error("Failed to add requirement", { description: e.message });
     }
   };
-  const handleDeleteCheck = async (itemId: string) => {
-    try {
-      await deleteScholarshipChecklistItem(itemId);
-      const updated = {
-        ...s,
-        checklist: s.checklist.filter((c) => c.id !== itemId),
-      };
-      setS(updated);
-      onUpdated(updated);
-    } catch (e: any) {
-      toast.error("Failed to remove requirement", { description: e.message });
-    }
-  };
-  const handleDelete = async () => {
-    try {
-      await deleteScholarship(s.id);
-      toast.success("Scholarship deleted", { description: s.name });
-      onDeleted(s.id);
-    } catch (e: any) {
-      toast.error("Failed to delete scholarship", { description: e.message });
-    }
+  const handleDeleteCheck = (itemId: string) => {
+    const removedItem = s.checklist.find((c) => c.id === itemId);
+    if (!removedItem) return;
+    const beforeChecklist = s.checklist;
+
+    deleteWithUndo({
+      id: itemId,
+      label: "Requirement removed",
+      description: removedItem.item,
+      onRemoveLocally: () => {
+        const updated = {
+          ...s,
+          checklist: s.checklist.filter((c) => c.id !== itemId),
+        };
+        setS(updated);
+        onUpdated(updated);
+      },
+      onRestoreLocally: () => {
+        const updated = { ...s, checklist: beforeChecklist };
+        setS(updated);
+        onUpdated(updated);
+      },
+      performDelete: () => deleteScholarshipChecklistItem(itemId),
+      onDeleteFailed: (e) =>
+        toast.error("Failed to remove requirement", {
+          description: e.message,
+        }),
+    });
   };
 
   const handleDuplicate = async (targetCycleId: string | null) => {
@@ -925,9 +934,12 @@ function ScholarshipDetailDrawer({
         <ConfirmDeleteModal
           itemName={s.name}
           itemType="scholarship"
+          linkedCount={s.eligibleUniversities.length}
+          linkedLabel="universities"
           onConfirm={() => {
             setShowDeleteModal(false);
-            handleDelete();
+            onDeleted(s.id);
+            onClose();
           }}
           onCancel={() => setShowDeleteModal(false)}
         />
@@ -955,6 +967,7 @@ export function Scholarships() {
     selectCycle,
     loading: cyclesLoading,
   } = useCycle();
+  const { deleteWithUndo } = useUndoableDelete();
   const [scholarships, setScholarships] = useState<Scholarship[]>([]);
   const [universities, setUniversities] = useState<University[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1109,8 +1122,27 @@ export function Scholarships() {
     if (selected?.id === updated.id) setSelected(updated);
   };
   const handleDeleted = (id: string) => {
-    setScholarships((prev) => prev.filter((s) => s.id !== id));
-    if (selected?.id === id) setSelected(null);
+    const removedScholarship = scholarships.find((s) => s.id === id);
+    if (!removedScholarship) return;
+
+    deleteWithUndo({
+      id,
+      label: "Scholarship deleted",
+      description: removedScholarship.name,
+      onRemoveLocally: () => {
+        setScholarships((prev) => prev.filter((s) => s.id !== id));
+        setSelected(null);
+      },
+      onRestoreLocally: () => {
+        setScholarships((prev) => [...prev, removedScholarship]);
+        setSelected(removedScholarship);
+      },
+      performDelete: () => deleteScholarship(id),
+      onDeleteFailed: (e) =>
+        toast.error("Failed to delete scholarship", {
+          description: e.message,
+        }),
+    });
   };
 
   const handleDuplicated = (duplicate: Scholarship) => {
