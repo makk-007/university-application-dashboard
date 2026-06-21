@@ -404,7 +404,7 @@ export function Timeline() {
   const filteredUniItems = useMemo(() => {
     if (view === "active")
       return uniItems.filter(
-        (i) => !["accepted", "rejected"].includes(i.status),
+        (i) => !["accepted", "rejected", "withdrawn"].includes(i.status),
       );
     return uniItems;
   }, [uniItems, view]);
@@ -437,7 +437,7 @@ export function Timeline() {
   const filteredScholItems = useMemo(() => {
     if (view === "active")
       return scholItems.filter(
-        (i) => !["awarded", "rejected"].includes(i.status),
+        (i) => !["awarded", "rejected", "withdrawn"].includes(i.status),
       );
     return scholItems;
   }, [scholItems, view]);
