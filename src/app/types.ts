@@ -94,3 +94,11 @@ export const DEFAULT_CHECKLIST_ITEMS = [
   "English Test (TOEFL/IELTS)",
   "Scholarship Application",
 ];
+
+export const DEFAULT_SCHOLARSHIP_CHECKLIST_ITEMS = [
+  "CV/Resume",
+  "Scholarship Essay",
+  "Recommendation Letters",
+  "Transcripts",
+  "Proof of Admission/Enrollment",
+];
