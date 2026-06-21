@@ -1,5 +1,10 @@
 import { supabase } from "../app/lib/supabase";
-import { Scholarship, ChecklistItem, ApplicationStatus } from "../app/types";
+import {
+  Scholarship,
+  ChecklistItem,
+  ApplicationStatus,
+  DEFAULT_SCHOLARSHIP_CHECKLIST_ITEMS,
+} from "../app/types";
 import { parseSupabaseError } from "./errors";
 
 // ── Mappers ──────────────────────────────────────────────────────────────────
@@ -149,6 +154,17 @@ export async function createScholarship(
     await setScholarshipUniversities(schol.id, data.eligibleUniversities);
   }
 
+  // Add default checklist items
+  if (DEFAULT_SCHOLARSHIP_CHECKLIST_ITEMS.length > 0) {
+    await supabase.from("scholarship_checklist").insert(
+      DEFAULT_SCHOLARSHIP_CHECKLIST_ITEMS.map((item) => ({
+        scholarship_id: schol.id,
+        item,
+        completed: false,
+      })),
+    );
+  }
+
   return getScholarship(schol.id);
 }
 
@@ -216,6 +232,12 @@ export async function duplicateScholarship(
     eligibleUniversities: [],
   });
 
+  // createScholarship already seeded the default checklist items; remove
+  // them and replace with an exact copy of the source's checklist so the
+  // duplicate mirrors the original rather than a generic template.
+  await Promise.all(
+    created.checklist.map((item) => deleteScholarshipChecklistItem(item.id)),
+  );
   if (source.checklist.length > 0) {
     await supabase.from("scholarship_checklist").insert(
       source.checklist.map((item) => ({

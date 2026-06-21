@@ -268,6 +268,17 @@ export function DashboardOverview() {
     [scholarships],
   );
 
+  const totalSecuredGHS = useMemo(
+    () =>
+      scholarships
+        .filter((s) => s.status === "awarded")
+        .reduce(
+          (t, s) => t + (s.amount ?? 0) * (FX_TO_GHS[s.currency] ?? 1),
+          0,
+        ),
+    [scholarships],
+  );
+
   if (loading)
     return (
       <div className="min-h-screen bg-background">
@@ -845,7 +856,7 @@ export function DashboardOverview() {
                     Scholarship Summary
                   </h2>
                   <p className="text-xs text-muted-foreground mb-4">
-                    Funding potential and status
+                    Funding secured, potential, and status
                   </p>
                   <div className="space-y-2.5">
                     <div className="flex justify-between items-center">
@@ -885,6 +896,20 @@ export function DashboardOverview() {
                       </span>
                     </div>
                     <div className="flex justify-between items-center pt-3 border-t border-border">
+                      <span className="text-sm font-medium text-foreground">
+                        Funding Secured
+                      </span>
+                      <span
+                        className="text-sm font-semibold tabular-nums"
+                        style={{ color: statusStrong["awarded"] }}
+                      >
+                        GHS{" "}
+                        {totalSecuredGHS.toLocaleString("en-US", {
+                          maximumFractionDigits: 0,
+                        })}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
                       <span className="text-sm font-medium text-foreground">
                         Total Potential Funding
                       </span>
