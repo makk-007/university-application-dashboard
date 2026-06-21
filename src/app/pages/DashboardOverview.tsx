@@ -627,7 +627,17 @@ export function DashboardOverview() {
                           <Cell key={i} fill={entry.color} />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(value, name) => [value, name]} />
+                      <Tooltip
+                        formatter={(value, name) => [value, name]}
+                        contentStyle={{
+                          backgroundColor: "var(--popover)",
+                          color: "var(--popover-foreground)",
+                          border: "1px solid var(--border)",
+                          borderRadius: "var(--radius-md)",
+                        }}
+                        itemStyle={{ color: "var(--popover-foreground)" }}
+                        labelStyle={{ color: "var(--popover-foreground)" }}
+                      />
                       <Legend />
                       {/* Centre label showing total */}
                       <text
@@ -661,24 +671,38 @@ export function DashboardOverview() {
                   <p className="text-sm text-muted-foreground mb-4">
                     Count of applications in each stage
                   </p>
-                  <ResponsiveContainer width="100%" height={220}>
+                  <ResponsiveContainer width="100%" height={280}>
                     <BarChart
                       data={barData}
-                      margin={{ top: 5, right: 10, left: 0, bottom: 40 }}
+                      layout="vertical"
+                      margin={{ top: 5, right: 24, left: 16, bottom: 5 }}
                     >
                       <CartesianGrid
                         strokeDasharray="3 3"
                         className="stroke-border"
                       />
                       <XAxis
+                        type="number"
+                        tick={{ fontSize: 11 }}
+                        allowDecimals={false}
+                      />
+                      <YAxis
+                        type="category"
                         dataKey="status"
                         tick={{ fontSize: 11 }}
-                        angle={-30}
-                        textAnchor="end"
+                        width={90}
                       />
-                      <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-                      <Tooltip />
-                      <Bar dataKey="count" radius={[6, 6, 0, 0]}>
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "var(--popover)",
+                          color: "var(--popover-foreground)",
+                          border: "1px solid var(--border)",
+                          borderRadius: "var(--radius-md)",
+                        }}
+                        itemStyle={{ color: "var(--popover-foreground)" }}
+                        labelStyle={{ color: "var(--popover-foreground)" }}
+                      />
+                      <Bar dataKey="count" radius={[0, 6, 6, 0]}>
                         {barData.map((entry, i) => (
                           <Cell key={i} fill={entry.fill} />
                         ))}
