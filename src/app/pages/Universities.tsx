@@ -15,11 +15,13 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
+  Copy,
 } from "lucide-react";
 import { toast } from "sonner";
 import { University, ApplicationStatus } from "../types";
 import { useCycle } from "../context/CycleContext";
 import { ConfirmDeleteModal } from "../components/ConfirmDeleteModal";
+import { DuplicateToCycleModal } from "../components/DuplicateToCycleModal";
 import { StatusBadge } from "../components/StatusBadge";
 import { Skeleton } from "../components/ui/skeleton";
 import {
@@ -40,6 +42,7 @@ import {
   createUniversity,
   updateUniversity,
   deleteUniversity,
+  duplicateUniversity,
   addChecklistItem,
   updateChecklistItem,
   deleteChecklistItem,
@@ -327,11 +330,13 @@ function UniversityDetailDrawer({
   onClose,
   onUpdated,
   onDeleted,
+  onDuplicated,
 }: {
   university: University;
   onClose: () => void;
   onUpdated: (u: University) => void;
   onDeleted: (id: string) => void;
+  onDuplicated: (u: University) => void;
 }) {
   const { selectedCycleId, cycles } = useCycle();
   const cycleName = university.cycleId
@@ -343,6 +348,7 @@ function UniversityDetailDrawer({
   const [savingNotes, setSavingNotes] = useState(false);
   const [savingField, setSavingField] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   const [notes, setNotes] = useState(university.notes ?? "");
   const [newCheckItem, setNewCheckItem] = useState("");
   const [notesTimer, setNotesTimer] = useState<ReturnType<
@@ -482,6 +488,15 @@ function UniversityDetailDrawer({
     }
   };
 
+  const handleDuplicate = async (targetCycleId: string | null) => {
+    const duplicate = await duplicateUniversity(uni.id, targetCycleId);
+    toast.success("University duplicated", {
+      description: `${duplicate.name} copied to the new cycle`,
+    });
+    setShowDuplicateModal(false);
+    onDuplicated(duplicate);
+  };
+
   const daysUntilDeadline = getDaysUntil(editDeadline || uni.deadline);
   const daysUntilOpen = getDaysUntil(editStartDate || uni.startDate);
 
@@ -507,6 +522,14 @@ function UniversityDetailDrawer({
             )}
           </div>
           <div className="flex items-center gap-1 shrink-0">
+            <button
+              onClick={() => setShowDuplicateModal(true)}
+              aria-label="Duplicate university to another cycle"
+              title="Duplicate to another cycle"
+              className="p-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors"
+            >
+              <Copy className="size-4" aria-hidden="true" />
+            </button>
             <button
               onClick={() => setShowDeleteModal(true)}
               aria-label="Delete university"
@@ -814,6 +837,17 @@ function UniversityDetailDrawer({
           onCancel={() => setShowDeleteModal(false)}
         />
       )}
+
+      {showDuplicateModal && (
+        <DuplicateToCycleModal
+          itemName={uni.name}
+          itemLabel="university"
+          sourceCycleId={uni.cycleId}
+          cycles={cycles}
+          onClose={() => setShowDuplicateModal(false)}
+          onConfirm={handleDuplicate}
+        />
+      )}
     </>
   );
 }
@@ -823,6 +857,7 @@ export function Universities() {
     selectedCycleId,
     activeCycleId,
     cycles,
+    selectCycle,
     loading: cyclesLoading,
   } = useCycle();
   const [universities, setUniversities] = useState<University[]>([]);
@@ -835,6 +870,7 @@ export function Universities() {
   const [regionFilter, setRegionFilter] = useState<string>("all");
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedUni, setSelectedUni] = useState<University | null>(null);
+  const [pendingOpenId, setPendingOpenId] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<
     "name" | "region" | "deadline" | "progress"
   >("name");
@@ -873,9 +909,24 @@ export function Universities() {
 
   // The previously open item may not belong to the newly selected cycle,
   // so close the drawer rather than showing stale or out-of-scope data.
+  // Exception: a just-duplicated record is expected to belong to the newly
+  // selected cycle, so keep the drawer state alone and let the effect below
+  // open it once its data has loaded.
   useEffect(() => {
+    if (pendingOpenId) return;
     setSelectedUni(null);
   }, [selectedCycleId]);
+
+  // Once the destination cycle's universities have loaded, open the
+  // duplicate that triggered the cycle switch, then clear the pending marker.
+  useEffect(() => {
+    if (!pendingOpenId || loading) return;
+    const match = universities.find((u) => u.id === pendingOpenId);
+    if (match) {
+      setSelectedUni(match);
+      setPendingOpenId(null);
+    }
+  }, [pendingOpenId, loading, universities]);
 
   const regions = useMemo(
     () => [...new Set(universities.map((u) => u.region))].sort(),
@@ -935,6 +986,22 @@ export function Universities() {
   const handleDeleted = (id: string) => {
     setUniversities((prev) => prev.filter((u) => u.id !== id));
     if (selectedUni?.id === id) setSelectedUni(null);
+  };
+
+  const handleDuplicated = (duplicate: University) => {
+    if (duplicate.cycleId === selectedCycleId) {
+      // Duplicate landed in the cycle already being viewed (including
+      // "All Cycles"): add it directly and open it now.
+      setUniversities((prev) => [...prev, duplicate]);
+      setSelectedUni(duplicate);
+    } else {
+      // Duplicate landed in a different cycle than the one currently
+      // being viewed. Switch to that cycle so the new record is visible
+      // and editable right away, per the requirement that cycle-specific
+      // details must be immediately editable after duplication.
+      setPendingOpenId(duplicate.id);
+      selectCycle(duplicate.cycleId);
+    }
   };
 
   return (
@@ -1433,6 +1500,7 @@ export function Universities() {
             onClose={() => setSelectedUni(null)}
             onUpdated={handleUpdated}
             onDeleted={handleDeleted}
+            onDuplicated={handleDuplicated}
           />
         )}
       </AnimatePresence>
