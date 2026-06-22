@@ -12,6 +12,9 @@ import {
   TrendingUp,
   DollarSign,
   CalendarClock,
+  CalendarPlus,
+  Bell,
+  BellOff,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { toast } from "sonner";
@@ -37,6 +40,12 @@ import {
   getDeadlineUrgency,
   getDaysUntil,
 } from "../utils/statusConfig";
+import {
+  getNotificationPermission,
+  requestNotificationPermission,
+  notifyUpcomingDeadlines,
+} from "../utils/notifications";
+import { exportDeadlinesToIcs } from "../utils/icsExport";
 import { getUniversities } from "../../services/universities";
 import { getScholarships } from "../../services/scholarships";
 import { University, Scholarship, FX_TO_GHS } from "../types";
@@ -48,6 +57,9 @@ export function DashboardOverview() {
   const [scholarships, setScholarships] = useState<Scholarship[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notificationPermission, setNotificationPermission] = useState(
+    getNotificationPermission(),
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -227,6 +239,54 @@ export function DashboardOverview() {
     );
   }, [universities, scholarships]);
 
+  // Show a browser notification for newly-urgent deadlines, once per item
+  // per day, only if the person has already granted permission. This
+  // fires while the app is open; it is not background push (no service
+  // worker), so it only catches deadlines while the dashboard is loaded.
+  useEffect(() => {
+    if (loading || upcomingDeadlines.length === 0) return;
+    notifyUpcomingDeadlines(
+      upcomingDeadlines.map((d) => ({
+        id: d.id,
+        type: d.type,
+        name: d.name,
+        daysUntil: getDaysUntil(d.deadline) ?? 0,
+      })),
+    );
+  }, [loading, upcomingDeadlines]);
+
+  // Broader than upcomingDeadlines: every future deadline regardless of
+  // status (excluding fully resolved outcomes), since a calendar export is
+  // a forward-looking reference rather than an urgency list.
+  const allUpcomingDeadlines = useMemo(() => {
+    const RESOLVED_STATUSES = ["accepted", "rejected", "withdrawn", "awarded"];
+    const isFutureAndOpen = (
+      status: string,
+      deadline: string | null | undefined,
+    ) => {
+      if (RESOLVED_STATUSES.includes(status)) return false;
+      const days = getDaysUntil(deadline ?? null);
+      return days !== null && days >= 0;
+    };
+    const uniEvents = universities
+      .filter((u) => isFutureAndOpen(u.status, u.deadline))
+      .map((u) => ({
+        id: u.id,
+        type: "university" as const,
+        name: u.name,
+        deadline: u.deadline!,
+      }));
+    const scholEvents = scholarships
+      .filter((s) => isFutureAndOpen(s.status, s.deadline))
+      .map((s) => ({
+        id: s.id,
+        type: "scholarship" as const,
+        name: s.name,
+        deadline: s.deadline!,
+      }));
+    return [...uniEvents, ...scholEvents];
+  }, [universities, scholarships]);
+
   const openingSoon = useMemo(() => {
     const today = new Date();
     return universities
@@ -368,14 +428,67 @@ export function DashboardOverview() {
               </span>
             </p>
           </div>
-          <button
-            onClick={load}
-            aria-label="Refresh dashboard"
-            className="inline-flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground bg-secondary hover:bg-secondary/80 rounded-lg transition-colors"
-          >
-            <RefreshCw className="size-4" aria-hidden="true" />
-            <span>Refresh</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => exportDeadlinesToIcs(allUpcomingDeadlines)}
+              disabled={allUpcomingDeadlines.length === 0}
+              aria-label="Export upcoming deadlines to calendar"
+              title="Export upcoming deadlines as a calendar file (.ics)"
+              className="inline-flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground bg-secondary hover:bg-secondary/80 disabled:opacity-50 rounded-lg transition-colors"
+            >
+              <CalendarPlus className="size-4" aria-hidden="true" />
+              <span className="hidden sm:inline">Export Calendar</span>
+            </button>
+            {notificationPermission !== "unsupported" &&
+              notificationPermission !== "denied" && (
+                <button
+                  onClick={async () => {
+                    if (notificationPermission === "granted") return;
+                    const result = await requestNotificationPermission();
+                    setNotificationPermission(result);
+                    if (result === "granted") {
+                      toast.success("Deadline notifications enabled");
+                    } else if (result === "denied") {
+                      toast.error("Notifications were not enabled");
+                    }
+                  }}
+                  aria-label={
+                    notificationPermission === "granted"
+                      ? "Deadline notifications are enabled"
+                      : "Enable deadline notifications"
+                  }
+                  title={
+                    notificationPermission === "granted"
+                      ? "Deadline notifications are enabled"
+                      : "Enable deadline notifications"
+                  }
+                  className={`inline-flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors ${
+                    notificationPermission === "granted"
+                      ? "text-foreground bg-secondary cursor-default"
+                      : "text-muted-foreground hover:text-foreground bg-secondary hover:bg-secondary/80"
+                  }`}
+                >
+                  {notificationPermission === "granted" ? (
+                    <Bell className="size-4" aria-hidden="true" />
+                  ) : (
+                    <BellOff className="size-4" aria-hidden="true" />
+                  )}
+                  <span className="hidden sm:inline">
+                    {notificationPermission === "granted"
+                      ? "Notifications On"
+                      : "Enable Notifications"}
+                  </span>
+                </button>
+              )}
+            <button
+              onClick={load}
+              aria-label="Refresh dashboard"
+              className="inline-flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground bg-secondary hover:bg-secondary/80 rounded-lg transition-colors"
+            >
+              <RefreshCw className="size-4" aria-hidden="true" />
+              <span>Refresh</span>
+            </button>
+          </div>
         </div>
       </header>
 
