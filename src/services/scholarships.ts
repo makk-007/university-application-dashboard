@@ -204,6 +204,72 @@ export async function deleteScholarship(id: string): Promise<void> {
 }
 
 /**
+ * Create scholarships from parsed CSV import rows. Each row becomes a new,
+ * independent record (this never updates or merges into existing rows).
+ * Eligible universities are not part of the CSV format since they
+ * reference internal IDs the user cannot reasonably author by hand; they
+ * can be linked afterward from the scholarship's detail drawer.
+ */
+export async function importScholarships(
+  rows: {
+    name: string;
+    status: Scholarship["status"];
+    amount: number;
+    currency: string;
+    coverage: Scholarship["coverage"];
+    startDate: string | null;
+    deadline: string | null;
+    link: string;
+    notes: string;
+    checklistItems: string[];
+    cycleId: string | null;
+  }[],
+): Promise<{ created: number; failures: string[] }> {
+  let created = 0;
+  const failures: string[] = [];
+
+  for (const row of rows) {
+    try {
+      const schol = await createScholarship({
+        cycleId: row.cycleId,
+        name: row.name,
+        status: row.status,
+        amount: row.amount,
+        currency: row.currency,
+        coverage: row.coverage,
+        notes: row.notes,
+        link: row.link,
+        startDate: row.startDate,
+        deadline: row.deadline,
+        eligibleUniversities: [],
+      });
+
+      // createScholarship seeds the default checklist; replace it with the
+      // imported checklist items (if any) so the import reflects exactly
+      // what was in the spreadsheet rather than a generic template.
+      await Promise.all(
+        schol.checklist.map((item) => deleteScholarshipChecklistItem(item.id)),
+      );
+      if (row.checklistItems.length > 0) {
+        await supabase.from("scholarship_checklist").insert(
+          row.checklistItems.map((item) => ({
+            scholarship_id: schol.id,
+            item,
+            completed: false,
+          })),
+        );
+      }
+
+      created++;
+    } catch (e: any) {
+      failures.push(`${row.name}: ${e.message}`);
+    }
+  }
+
+  return { created, failures };
+}
+
+/**
  * Duplicate a scholarship into another cycle as a fully independent record.
  * Copies name, amount, currency, coverage, dates, link, notes, and checklist
  * items (reset to incomplete). Status resets to "not-started" since a
