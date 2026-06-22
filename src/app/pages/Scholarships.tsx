@@ -947,7 +947,7 @@ function ScholarshipDetailDrawer({
 
       {showDuplicateModal && (
         <DuplicateToCycleModal
-          itemName={s.name}
+          description={s.name}
           itemLabel="scholarship"
           sourceCycleId={s.cycleId}
           cycles={cycles}
@@ -988,6 +988,8 @@ export function Scholarships() {
   >("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [page, setPage] = useState(1);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkDuplicate, setShowBulkDuplicate] = useState(false);
   const PAGE_SIZE = 9;
 
   const handleSort = (key: typeof sortKey) => {
@@ -1084,9 +1086,38 @@ export function Scholarships() {
     [sorted, page],
   );
 
+  const allOnPageSelected =
+    paginated.length > 0 && paginated.every((s) => selectedIds.has(s.id));
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAllOnPage = () => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allOnPageSelected) {
+        paginated.forEach((s) => next.delete(s.id));
+      } else {
+        paginated.forEach((s) => next.add(s.id));
+      }
+      return next;
+    });
+  };
+
+  const selectedScholarships = scholarships.filter((s) =>
+    selectedIds.has(s.id),
+  );
+
   useEffect(() => {
     setPage(1);
-  }, [searchQuery, statusFilter, coverageFilter]);
+    setSelectedIds(new Set());
+  }, [searchQuery, statusFilter, coverageFilter, selectedCycleId]);
 
   const fundingData = useMemo(
     () =>
@@ -1158,6 +1189,38 @@ export function Scholarships() {
       // details must be immediately editable after duplication.
       setPendingOpenId(duplicate.id);
       selectCycle(duplicate.cycleId);
+    }
+  };
+
+  const handleBulkDuplicate = async (targetCycleId: string | null) => {
+    const ids = Array.from(selectedIds);
+    const results = await Promise.allSettled(
+      ids.map((id) => duplicateScholarship(id, targetCycleId)),
+    );
+    const succeeded = results.filter(
+      (r): r is PromiseFulfilledResult<Scholarship> => r.status === "fulfilled",
+    ).length;
+    const failed = results.length - succeeded;
+
+    if (succeeded > 0) {
+      toast.success(
+        `Duplicated ${succeeded} ${succeeded === 1 ? "scholarship" : "scholarships"}`,
+        failed > 0
+          ? { description: `${failed} could not be duplicated` }
+          : undefined,
+      );
+    }
+    if (succeeded === 0 && failed > 0) {
+      toast.error("Failed to duplicate scholarships");
+    }
+
+    setSelectedIds(new Set());
+    setShowBulkDuplicate(false);
+
+    if (targetCycleId === selectedCycleId) {
+      load();
+    } else {
+      selectCycle(targetCycleId);
     }
   };
 
@@ -1355,6 +1418,47 @@ export function Scholarships() {
                 </div>
               </div>
             </div>
+
+            {paginated.length > 0 && (
+              <div className="flex items-center justify-between gap-3">
+                <label className="inline-flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={allOnPageSelected}
+                    onChange={toggleSelectAllOnPage}
+                    aria-label="Select all scholarships on this page"
+                    className="size-4 rounded border-border accent-[var(--brand-600)] cursor-pointer"
+                  />
+                  Select all on this page
+                </label>
+              </div>
+            )}
+
+            {selectedIds.size > 0 && (
+              <div className="flex items-center justify-between gap-3 bg-secondary/50 border border-border rounded-lg px-4 py-3">
+                <span className="text-sm text-foreground">
+                  {selectedIds.size}{" "}
+                  {selectedIds.size === 1 ? "scholarship" : "scholarships"}{" "}
+                  selected
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setSelectedIds(new Set())}
+                    className="px-3 h-8 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Clear
+                  </button>
+                  <button
+                    onClick={() => setShowBulkDuplicate(true)}
+                    className="inline-flex items-center gap-1.5 px-3 h-8 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 transition-colors"
+                  >
+                    <Copy className="size-3.5" aria-hidden="true" />
+                    Duplicate to Cycle
+                  </button>
+                </div>
+              </div>
+            )}
+
             {filtered.length === 0 ? (
               <div className="bg-card rounded-xl border p-12 text-center card-resting">
                 <DollarSign
@@ -1417,9 +1521,22 @@ export function Scholarships() {
                     >
                       <div className="p-6">
                         <div className="flex items-start justify-between mb-4">
-                          <h3 className="text-base font-semibold text-card-foreground flex-1 pr-2">
-                            {schol.name}
-                          </h3>
+                          <div className="flex items-start gap-2 flex-1 pr-2 min-w-0">
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.has(schol.id)}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                toggleSelected(schol.id);
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                              aria-label={`Select ${schol.name}`}
+                              className="size-4 mt-1 rounded border-border accent-[var(--brand-600)] cursor-pointer shrink-0"
+                            />
+                            <h3 className="text-base font-semibold text-card-foreground">
+                              {schol.name}
+                            </h3>
+                          </div>
                           <StatusBadge status={schol.status} size="sm" />
                         </div>
                         <div className="space-y-3">
@@ -1699,6 +1816,17 @@ export function Scholarships() {
           />
         )}
       </AnimatePresence>
+
+      {showBulkDuplicate && (
+        <DuplicateToCycleModal
+          description={`${selectedScholarships.length} ${selectedScholarships.length === 1 ? "scholarship" : "scholarships"}`}
+          itemLabel="scholarship"
+          sourceCycleId={selectedCycleId}
+          cycles={cycles}
+          onClose={() => setShowBulkDuplicate(false)}
+          onConfirm={handleBulkDuplicate}
+        />
+      )}
     </div>
   );
 }

@@ -9,10 +9,12 @@ import {
   Archive,
   CheckCircle2,
   Loader2,
+  Copy,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useCycle } from "../context/CycleContext";
 import { ApplicationCycle } from "../types";
+import { DuplicateCycleModal } from "./DuplicateCycleModal";
 import { inputCls, textareaCls } from "./ui/input-classes";
 import {
   AlertDialog,
@@ -284,6 +286,8 @@ export function CycleManagementCard() {
   const [archiving, setArchiving] = useState<ApplicationCycle | null>(null);
   const [archiveSaving, setArchiveSaving] = useState(false);
   const [settingActiveId, setSettingActiveId] = useState<string | null>(null);
+  const [duplicatingCycle, setDuplicatingCycle] =
+    useState<ApplicationCycle | null>(null);
 
   const openCreate = () => {
     setFormCycle(null);
@@ -425,6 +429,14 @@ export function CycleManagementCard() {
                     </button>
                   )}
                   <button
+                    onClick={() => setDuplicatingCycle(cycle)}
+                    aria-label={`Duplicate ${cycle.name}'s contents to another cycle`}
+                    title="Duplicate cycle contents to another cycle"
+                    className="p-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
+                  >
+                    <Copy className="size-4" aria-hidden="true" />
+                  </button>
+                  <button
                     onClick={() => openEdit(cycle)}
                     aria-label={`Edit ${cycle.name}`}
                     className="p-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
@@ -462,6 +474,14 @@ export function CycleManagementCard() {
           saving={archiveSaving}
           onCancel={() => setArchiving(null)}
           onConfirm={handleArchive}
+        />
+      )}
+
+      {duplicatingCycle && (
+        <DuplicateCycleModal
+          sourceCycle={duplicatingCycle}
+          cycles={cycles}
+          onClose={() => setDuplicatingCycle(null)}
         />
       )}
     </div>

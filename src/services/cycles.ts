@@ -1,6 +1,8 @@
 import { supabase } from "../app/lib/supabase";
 import { ApplicationCycle } from "../app/types";
 import { parseSupabaseError } from "./errors";
+import { getUniversities, duplicateUniversity } from "./universities";
+import { getScholarships, duplicateScholarship } from "./scholarships";
 
 // ── Mappers ──────────────────────────────────────────────────────────────────
 
@@ -159,4 +161,55 @@ export async function deleteCycle(id: string): Promise<void> {
     .eq("id", id);
 
   if (error) throw new Error(parseSupabaseError(error));
+}
+
+export interface DuplicateCycleResult {
+  universitiesDuplicated: number;
+  scholarshipsDuplicated: number;
+  failures: string[];
+}
+
+/**
+ * Duplicate every university and scholarship from one cycle into another,
+ * reusing the same per-record duplicateUniversity/duplicateScholarship logic
+ * used for single-item duplication (independent copies, checklist carried
+ * over, status reset, cross-entity links dropped since they would not
+ * resolve against the target cycle).
+ *
+ * Each record is duplicated independently: if one fails, the rest continue
+ * rather than aborting the whole batch, and the failure is reported back
+ * so the user knows exactly what didn't make it across.
+ */
+export async function duplicateCycleContents(
+  sourceCycleId: string,
+  targetCycleId: string,
+): Promise<DuplicateCycleResult> {
+  const [universities, scholarships] = await Promise.all([
+    getUniversities(sourceCycleId),
+    getScholarships(sourceCycleId),
+  ]);
+
+  const failures: string[] = [];
+  let universitiesDuplicated = 0;
+  let scholarshipsDuplicated = 0;
+
+  for (const uni of universities) {
+    try {
+      await duplicateUniversity(uni.id, targetCycleId);
+      universitiesDuplicated++;
+    } catch (e: any) {
+      failures.push(`${uni.name}: ${e.message}`);
+    }
+  }
+
+  for (const schol of scholarships) {
+    try {
+      await duplicateScholarship(schol.id, targetCycleId);
+      scholarshipsDuplicated++;
+    } catch (e: any) {
+      failures.push(`${schol.name}: ${e.message}`);
+    }
+  }
+
+  return { universitiesDuplicated, scholarshipsDuplicated, failures };
 }

@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useState, ReactNode } from "react";
 import { motion } from "motion/react";
 import { Copy, X, AlertCircle, Loader2 } from "lucide-react";
 import { ApplicationCycle } from "../types";
 import { selectCls } from "./ui/input-classes";
 
 interface DuplicateToCycleModalProps {
-  itemName: string;
+  /** Description of what's being duplicated, e.g. an item name or "3 universities". */
+  description: ReactNode;
   itemLabel: string;
   sourceCycleId: string | null;
   cycles: ApplicationCycle[];
@@ -14,7 +15,7 @@ interface DuplicateToCycleModalProps {
 }
 
 export function DuplicateToCycleModal({
-  itemName,
+  description,
   itemLabel,
   sourceCycleId,
   cycles,
@@ -76,8 +77,8 @@ export function DuplicateToCycleModal({
           )}
           <p className="text-sm text-muted-foreground">
             Create an independent copy of{" "}
-            <span className="font-medium text-foreground">{itemName}</span> in
-            another cycle. Editing the copy will never affect the original.
+            <span className="font-medium text-foreground">{description}</span>{" "}
+            in another cycle. Editing the copy will never affect the original.
           </p>
 
           {destinationOptions.length === 0 ? (
