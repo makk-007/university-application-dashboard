@@ -29,14 +29,17 @@ import { useCycle } from "../context/CycleContext";
 import { useUndoableDelete } from "../context/UndoableDeleteContext";
 import { ConfirmDeleteModal } from "../components/ConfirmDeleteModal";
 import { DuplicateToCycleModal } from "../components/DuplicateToCycleModal";
+import { StatusHistorySection } from "../components/StatusHistorySection";
 import { StatusBadge } from "../components/StatusBadge";
 import { Skeleton } from "../components/ui/skeleton";
+import { OverdueBadge } from "../components/OverdueBadge";
 import {
   statusConfig,
   statusStrong,
   ALL_STATUSES,
   getDaysUntil,
   getDeadlineUrgency,
+  isOverdue,
 } from "../utils/statusConfig";
 import {
   getScholarships,
@@ -50,6 +53,10 @@ import {
   setScholarshipUniversities,
 } from "../../services/scholarships";
 import { getUniversities } from "../../services/universities";
+import {
+  logScholarshipStatusChange,
+  getScholarshipStatusHistory,
+} from "../../services/statusHistory";
 import {
   inputCls,
   selectCls,
@@ -456,6 +463,7 @@ function ScholarshipDetailDrawer({
   const progress = total > 0 ? (completed / total) * 100 : 0;
   const handleStatusChange = async (status: ApplicationStatus) => {
     setSavingStatus(true);
+    const previousStatus = s.status;
     try {
       await updateScholarship(s.id, { status });
       const updated = { ...s, status };
@@ -464,6 +472,7 @@ function ScholarshipDetailDrawer({
       toast.success("Status updated", {
         description: statusConfig[status].label,
       });
+      logScholarshipStatusChange(s.id, previousStatus, status);
     } catch (e: any) {
       toast.error("Failed to update status", { description: e.message });
     } finally {
@@ -594,10 +603,17 @@ function ScholarshipDetailDrawer({
             <h2 className="text-xl font-semibold text-card-foreground truncate">
               {s.name}
             </h2>
-            {showCycleBadge && (
-              <span className="inline-flex items-center mt-1 px-2 py-0.5 rounded-md bg-muted text-muted-foreground text-xs font-medium">
-                {cycleName}
-              </span>
+            {(showCycleBadge || isOverdue(s.status, s.deadline ?? null)) && (
+              <div className="flex items-center gap-2 mt-1">
+                {showCycleBadge && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-muted text-muted-foreground text-xs font-medium">
+                    {cycleName}
+                  </span>
+                )}
+                {isOverdue(s.status, s.deadline ?? null) && (
+                  <OverdueBadge size="sm" />
+                )}
+              </div>
             )}
           </div>
           <div className="flex items-center gap-1 shrink-0">
@@ -847,6 +863,10 @@ function ScholarshipDetailDrawer({
               </button>
             </div>
           </div>
+
+          <StatusHistorySection
+            fetchHistory={() => getScholarshipStatusHistory(s.id)}
+          />
 
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -1537,7 +1557,13 @@ export function Scholarships() {
                               {schol.name}
                             </h3>
                           </div>
-                          <StatusBadge status={schol.status} size="sm" />
+                          <div className="flex flex-col items-end gap-1.5 shrink-0">
+                            <StatusBadge status={schol.status} size="sm" />
+                            {isOverdue(
+                              schol.status,
+                              schol.deadline ?? null,
+                            ) && <OverdueBadge size="sm" />}
+                          </div>
                         </div>
                         <div className="space-y-3">
                           <div className="flex items-center justify-between">

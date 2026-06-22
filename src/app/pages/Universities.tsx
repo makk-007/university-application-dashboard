@@ -23,6 +23,7 @@ import { useCycle } from "../context/CycleContext";
 import { useUndoableDelete } from "../context/UndoableDeleteContext";
 import { ConfirmDeleteModal } from "../components/ConfirmDeleteModal";
 import { DuplicateToCycleModal } from "../components/DuplicateToCycleModal";
+import { StatusHistorySection } from "../components/StatusHistorySection";
 import { StatusBadge } from "../components/StatusBadge";
 import { Skeleton } from "../components/ui/skeleton";
 import {
@@ -32,7 +33,9 @@ import {
   UNI_STATUSES,
   getDaysUntil,
   getDeadlineUrgency,
+  isOverdue,
 } from "../utils/statusConfig";
+import { OverdueBadge } from "../components/OverdueBadge";
 import {
   inputCls,
   selectCls,
@@ -48,6 +51,10 @@ import {
   updateChecklistItem,
   deleteChecklistItem,
 } from "../../services/universities";
+import {
+  logUniversityStatusChange,
+  getUniversityStatusHistory,
+} from "../../services/statusHistory";
 
 const REGIONS = [
   "North America",
@@ -402,6 +409,7 @@ function UniversityDetailDrawer({
 
   const handleStatusChange = async (status: ApplicationStatus) => {
     setSavingStatus(true);
+    const previousStatus = uni.status;
     try {
       await updateUniversity(uni.id, { status });
       const updated = { ...uni, status };
@@ -410,6 +418,7 @@ function UniversityDetailDrawer({
       toast.success("Status updated", {
         description: statusConfig[status].label,
       });
+      logUniversityStatusChange(uni.id, previousStatus, status);
     } catch (e: any) {
       toast.error("Failed to update status", { description: e.message });
     } finally {
@@ -523,10 +532,17 @@ function UniversityDetailDrawer({
             <h2 className="text-xl font-semibold text-card-foreground truncate">
               {uni.name}
             </h2>
-            {showCycleBadge && (
-              <span className="inline-flex items-center mt-1 px-2 py-0.5 rounded-md bg-muted text-muted-foreground text-xs font-medium">
-                {cycleName}
-              </span>
+            {(showCycleBadge || isOverdue(uni.status, uni.deadline)) && (
+              <div className="flex items-center gap-2 mt-1">
+                {showCycleBadge && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-muted text-muted-foreground text-xs font-medium">
+                    {cycleName}
+                  </span>
+                )}
+                {isOverdue(uni.status, uni.deadline) && (
+                  <OverdueBadge size="sm" />
+                )}
+              </div>
             )}
           </div>
           <div className="flex items-center gap-1 shrink-0">
@@ -772,6 +788,10 @@ function UniversityDetailDrawer({
               </button>
             </div>
           </div>
+
+          <StatusHistorySection
+            fetchHistory={() => getUniversityStatusHistory(uni.id)}
+          />
 
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -1384,7 +1404,12 @@ export function Universities() {
                             </div>
                           </td>
                           <td className="px-6 py-4">
-                            <StatusBadge status={uni.status} />
+                            <div className="flex items-center gap-1.5">
+                              <StatusBadge status={uni.status} />
+                              {isOverdue(uni.status, uni.deadline) && (
+                                <OverdueBadge size="sm" />
+                              )}
+                            </div>
                           </td>
                           <td className="px-6 py-4">
                             <div className="text-sm text-foreground tabular-nums">
@@ -1601,7 +1626,12 @@ export function Universities() {
                         {uni.name}
                       </p>
                     </div>
-                    <StatusBadge status={uni.status} size="sm" />
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <StatusBadge status={uni.status} size="sm" />
+                      {isOverdue(uni.status, uni.deadline) && (
+                        <OverdueBadge size="sm" />
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
                     <span>{uni.region}</span>
