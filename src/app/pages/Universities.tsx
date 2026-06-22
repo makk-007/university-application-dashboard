@@ -851,7 +851,7 @@ function UniversityDetailDrawer({
 
       {showDuplicateModal && (
         <DuplicateToCycleModal
-          itemName={uni.name}
+          description={uni.name}
           itemLabel="university"
           sourceCycleId={uni.cycleId}
           cycles={cycles}
@@ -888,6 +888,8 @@ export function Universities() {
   >("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [page, setPage] = useState(1);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkDuplicate, setShowBulkDuplicate] = useState(false);
   const PAGE_SIZE = 10;
 
   const handleSort = (key: typeof sortKey) => {
@@ -947,7 +949,8 @@ export function Universities() {
 
   useEffect(() => {
     setPage(1);
-  }, [searchQuery, statusFilter, regionFilter]);
+    setSelectedIds(new Set());
+  }, [searchQuery, statusFilter, regionFilter, selectedCycleId]);
 
   const filtered = useMemo(
     () =>
@@ -988,6 +991,34 @@ export function Universities() {
   const paginated = useMemo(
     () => sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
     [sorted, page],
+  );
+
+  const allOnPageSelected =
+    paginated.length > 0 && paginated.every((u) => selectedIds.has(u.id));
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAllOnPage = () => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allOnPageSelected) {
+        paginated.forEach((u) => next.delete(u.id));
+      } else {
+        paginated.forEach((u) => next.add(u.id));
+      }
+      return next;
+    });
+  };
+
+  const selectedUniversities = universities.filter((u) =>
+    selectedIds.has(u.id),
   );
 
   const handleUpdated = (updated: University) => {
@@ -1034,6 +1065,38 @@ export function Universities() {
       // details must be immediately editable after duplication.
       setPendingOpenId(duplicate.id);
       selectCycle(duplicate.cycleId);
+    }
+  };
+
+  const handleBulkDuplicate = async (targetCycleId: string | null) => {
+    const ids = Array.from(selectedIds);
+    const results = await Promise.allSettled(
+      ids.map((id) => duplicateUniversity(id, targetCycleId)),
+    );
+    const succeeded = results.filter(
+      (r): r is PromiseFulfilledResult<University> => r.status === "fulfilled",
+    ).length;
+    const failed = results.length - succeeded;
+
+    if (succeeded > 0) {
+      toast.success(
+        `Duplicated ${succeeded} ${succeeded === 1 ? "university" : "universities"}`,
+        failed > 0
+          ? { description: `${failed} could not be duplicated` }
+          : undefined,
+      );
+    }
+    if (succeeded === 0 && failed > 0) {
+      toast.error("Failed to duplicate universities");
+    }
+
+    setSelectedIds(new Set());
+    setShowBulkDuplicate(false);
+
+    if (targetCycleId === selectedCycleId) {
+      load();
+    } else {
+      selectCycle(targetCycleId);
     }
   };
 
@@ -1134,6 +1197,30 @@ export function Universities() {
           </div>
         </div>
 
+        {selectedIds.size > 0 && (
+          <div className="flex items-center justify-between gap-3 bg-secondary/50 border border-border rounded-lg px-4 py-3 mb-4 sm:mb-6">
+            <span className="text-sm text-foreground">
+              {selectedIds.size}{" "}
+              {selectedIds.size === 1 ? "university" : "universities"} selected
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="px-3 h-8 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Clear
+              </button>
+              <button
+                onClick={() => setShowBulkDuplicate(true)}
+                className="inline-flex items-center gap-1.5 px-3 h-8 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 transition-colors"
+              >
+                <Copy className="size-3.5" aria-hidden="true" />
+                Duplicate to Cycle
+              </button>
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <div className="bg-card rounded-xl border card-resting overflow-hidden hidden sm:block">
             <div className="overflow-x-auto">
@@ -1202,6 +1289,15 @@ export function Universities() {
                 <table className="w-full">
                   <thead className="bg-muted/50 border-b border-border">
                     <tr>
+                      <th className="w-10 px-4 py-3">
+                        <input
+                          type="checkbox"
+                          checked={allOnPageSelected}
+                          onChange={toggleSelectAllOnPage}
+                          aria-label="Select all universities on this page"
+                          className="size-4 rounded border-border accent-[var(--brand-600)] cursor-pointer"
+                        />
+                      </th>
                       {[
                         { label: "University", key: "name" as const },
                         { label: "Region", key: "region" as const },
@@ -1265,6 +1361,18 @@ export function Universities() {
                           onClick={() => setSelectedUni(uni)}
                           className={`hover:bg-muted/30 cursor-pointer transition-colors ${selectedUni?.id === uni.id ? "bg-muted/40" : ""}`}
                         >
+                          <td
+                            className="w-10 px-4 py-4"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.has(uni.id)}
+                              onChange={() => toggleSelected(uni.id)}
+                              aria-label={`Select ${uni.name}`}
+                              className="size-4 rounded border-border accent-[var(--brand-600)] cursor-pointer"
+                            />
+                          </td>
                           <td className="px-6 py-4">
                             <div className="font-medium text-foreground">
                               {uni.name}
@@ -1477,7 +1585,22 @@ export function Universities() {
                   className={`bg-card rounded-xl border card-resting p-4 cursor-pointer hover:card-raised transition-shadow duration-200 ${selectedUni?.id === uni.id ? "ring-2 ring-ring" : ""}`}
                 >
                   <div className="flex items-start justify-between gap-2 mb-3">
-                    <p className="font-medium text-foreground">{uni.name}</p>
+                    <div className="flex items-start gap-2 min-w-0">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(uni.id)}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          toggleSelected(uni.id);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        aria-label={`Select ${uni.name}`}
+                        className="size-4 mt-0.5 rounded border-border accent-[var(--brand-600)] cursor-pointer shrink-0"
+                      />
+                      <p className="font-medium text-foreground truncate">
+                        {uni.name}
+                      </p>
+                    </div>
                     <StatusBadge status={uni.status} size="sm" />
                   </div>
                   <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
@@ -1537,6 +1660,17 @@ export function Universities() {
           />
         )}
       </AnimatePresence>
+
+      {showBulkDuplicate && (
+        <DuplicateToCycleModal
+          description={`${selectedUniversities.length} ${selectedUniversities.length === 1 ? "university" : "universities"}`}
+          itemLabel="university"
+          sourceCycleId={selectedCycleId}
+          cycles={cycles}
+          onClose={() => setShowBulkDuplicate(false)}
+          onConfirm={handleBulkDuplicate}
+        />
+      )}
     </div>
   );
 }
