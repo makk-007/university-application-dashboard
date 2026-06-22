@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS application_cycles (
   start_date DATE,
   end_date DATE,
   is_active BOOLEAN NOT NULL DEFAULT FALSE,
+  is_archived BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
