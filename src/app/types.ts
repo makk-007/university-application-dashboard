@@ -16,6 +16,7 @@ export interface ApplicationCycle {
   startDate?: string | null;
   endDate?: string | null;
   isActive: boolean;
+  isArchived: boolean;
   createdAt?: string;
 }
 

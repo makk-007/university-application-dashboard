@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   CalendarRange,
@@ -7,13 +7,17 @@ import {
   AlertCircle,
   Pencil,
   Archive,
+  ArchiveRestore,
   CheckCircle2,
   Loader2,
   Copy,
+  Trash2,
+  ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useCycle } from "../context/CycleContext";
 import { ApplicationCycle } from "../types";
+import { getCycleRecordCounts } from "../../services/cycles";
 import { DuplicateCycleModal } from "./DuplicateCycleModal";
 import { inputCls, textareaCls } from "./ui/input-classes";
 import {
@@ -277,17 +281,126 @@ function ArchiveCycleModal({
   );
 }
 
+function DeleteCycleModal({
+  cycle,
+  onConfirm,
+  onCancel,
+}: {
+  cycle: ApplicationCycle;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const [saving, setSaving] = useState(false);
+  const [loadingCounts, setLoadingCounts] = useState(true);
+  const [counts, setCounts] = useState<{
+    universities: number;
+    scholarships: number;
+  } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getCycleRecordCounts(cycle.id)
+      .then((c) => !cancelled && setCounts(c))
+      .catch(() => !cancelled && setCounts(null))
+      .finally(() => !cancelled && setLoadingCounts(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [cycle.id]);
+
+  const totalLinked = (counts?.universities ?? 0) + (counts?.scholarships ?? 0);
+
+  const handleConfirm = () => {
+    setSaving(true);
+    onConfirm();
+  };
+
+  return (
+    <AlertDialog open onOpenChange={(open) => !open && !saving && onCancel()}>
+      <AlertDialogContent className="max-w-sm">
+        <AlertDialogHeader className="items-center text-center sm:text-center">
+          <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center mb-2">
+            <Trash2 className="size-6 text-destructive" aria-hidden="true" />
+          </div>
+          <AlertDialogTitle className="text-base">
+            Delete {cycle.name}?
+          </AlertDialogTitle>
+          <AlertDialogDescription className="text-sm text-center">
+            This permanently removes the cycle itself. This cannot be undone.
+          </AlertDialogDescription>
+          {!loadingCounts && totalLinked > 0 && (
+            <AlertDialogDescription className="text-sm text-center text-orange-600 dark:text-orange-400">
+              {counts!.universities > 0 && (
+                <>
+                  {counts!.universities}{" "}
+                  {counts!.universities === 1 ? "university" : "universities"}
+                </>
+              )}
+              {counts!.universities > 0 && counts!.scholarships > 0 && " and "}
+              {counts!.scholarships > 0 && (
+                <>
+                  {counts!.scholarships}{" "}
+                  {counts!.scholarships === 1 ? "scholarship" : "scholarships"}
+                </>
+              )}{" "}
+              {totalLinked === 1 ? "is" : "are"} linked to this cycle.{" "}
+              {totalLinked === 1 ? "It" : "They"} will not be deleted, but{" "}
+              {totalLinked === 1 ? "it" : "they"} will no longer belong to any
+              cycle and will only appear under "All Cycles".
+            </AlertDialogDescription>
+          )}
+        </AlertDialogHeader>
+        <AlertDialogFooter className="sm:flex-row gap-3 mt-2">
+          <button
+            onClick={onCancel}
+            disabled={saving}
+            className="flex-1 h-9 border border-border rounded-md text-sm font-medium text-foreground hover:bg-accent disabled:opacity-50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={saving || loadingCounts}
+            className="flex-1 h-9 bg-destructive text-destructive-foreground rounded-md text-sm font-medium hover:bg-destructive/90 disabled:opacity-50 transition-colors inline-flex items-center justify-center gap-2"
+          >
+            {saving && (
+              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+            )}
+            Delete
+          </button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 // ── Main Card ────────────────────────────────────────────────────────────────
 
 export function CycleManagementCard() {
-  const { cycles, loading, error, setActiveCycle, archiveCycle } = useCycle();
+  const {
+    cycles,
+    loading,
+    error,
+    setActiveCycle,
+    archiveCycle,
+    unarchiveCycle,
+    deleteCycle,
+  } = useCycle();
   const [formCycle, setFormCycle] = useState<ApplicationCycle | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [archiving, setArchiving] = useState<ApplicationCycle | null>(null);
   const [archiveSaving, setArchiveSaving] = useState(false);
+  const [unarchivingId, setUnarchivingId] = useState<string | null>(null);
+  const [deletingCycle, setDeletingCycle] = useState<ApplicationCycle | null>(
+    null,
+  );
   const [settingActiveId, setSettingActiveId] = useState<string | null>(null);
   const [duplicatingCycle, setDuplicatingCycle] =
     useState<ApplicationCycle | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
+
+  const visibleCycles = cycles.filter((c) => !c.isArchived);
+  const archivedCycles = cycles.filter((c) => c.isArchived);
 
   const openCreate = () => {
     setFormCycle(null);
@@ -322,6 +435,30 @@ export function CycleManagementCard() {
       toast.error("Failed to archive cycle", { description: e.message });
     } finally {
       setArchiveSaving(false);
+    }
+  };
+
+  const handleUnarchive = async (cycle: ApplicationCycle) => {
+    setUnarchivingId(cycle.id);
+    try {
+      await unarchiveCycle(cycle.id);
+      toast.success("Cycle restored", { description: cycle.name });
+    } catch (e: any) {
+      toast.error("Failed to restore cycle", { description: e.message });
+    } finally {
+      setUnarchivingId(null);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deletingCycle) return;
+    try {
+      await deleteCycle(deletingCycle.id);
+      toast.success("Cycle deleted", { description: deletingCycle.name });
+      setDeletingCycle(null);
+    } catch (e: any) {
+      toast.error("Failed to delete cycle", { description: e.message });
+      setDeletingCycle(null);
     }
   };
 
@@ -380,82 +517,173 @@ export function CycleManagementCard() {
             </p>
           </div>
         ) : (
-          <div className="space-y-2">
-            {cycles.map((cycle) => (
-              <div
-                key={cycle.id}
-                className="flex items-center justify-between gap-3 rounded-lg border border-border px-4 py-3"
-              >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-foreground truncate">
-                      {cycle.name}
-                    </p>
-                    {cycle.isActive && (
-                      <span
-                        className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium whitespace-nowrap"
-                        style={{
-                          color: "var(--status-accepted-text)",
-                          backgroundColor: "var(--status-accepted-tint)",
-                        }}
-                      >
-                        <CheckCircle2 className="size-3" aria-hidden="true" />
-                        Active
-                      </span>
-                    )}
-                  </div>
-                  {(cycle.startDate || cycle.endDate) && (
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {cycle.startDate ?? "No start"} to{" "}
-                      {cycle.endDate ?? "No end"}
-                    </p>
-                  )}
-                  {cycle.description && (
-                    <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                      {cycle.description}
-                    </p>
-                  )}
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {!cycle.isActive && (
-                    <button
-                      onClick={() => handleSetActive(cycle)}
-                      disabled={settingActiveId === cycle.id}
-                      className="px-2.5 h-8 text-xs font-medium border border-border rounded-md text-foreground hover:bg-accent disabled:opacity-50 transition-colors"
-                    >
-                      {settingActiveId === cycle.id
-                        ? "Setting..."
-                        : "Set Active"}
-                    </button>
-                  )}
-                  <button
-                    onClick={() => setDuplicatingCycle(cycle)}
-                    aria-label={`Duplicate ${cycle.name}'s contents to another cycle`}
-                    title="Duplicate cycle contents to another cycle"
-                    className="p-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
-                  >
-                    <Copy className="size-4" aria-hidden="true" />
-                  </button>
-                  <button
-                    onClick={() => openEdit(cycle)}
-                    aria-label={`Edit ${cycle.name}`}
-                    className="p-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
-                  >
-                    <Pencil className="size-4" aria-hidden="true" />
-                  </button>
-                  {!cycle.isActive && (
-                    <button
-                      onClick={() => setArchiving(cycle)}
-                      aria-label={`Archive ${cycle.name}`}
-                      className="p-2 text-muted-foreground hover:text-amber-600 hover:bg-accent rounded-md transition-colors"
-                    >
-                      <Archive className="size-4" aria-hidden="true" />
-                    </button>
-                  )}
-                </div>
+          <>
+            {visibleCycles.length === 0 ? (
+              <div className="text-center py-8 border border-dashed border-border rounded-lg">
+                <p className="text-sm text-muted-foreground">
+                  All cycles are archived. Restore one below or create a new
+                  cycle.
+                </p>
               </div>
-            ))}
-          </div>
+            ) : (
+              <div className="space-y-2">
+                {visibleCycles.map((cycle) => (
+                  <div
+                    key={cycle.id}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-border px-4 py-3"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-foreground truncate">
+                          {cycle.name}
+                        </p>
+                        {cycle.isActive && (
+                          <span
+                            className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium whitespace-nowrap"
+                            style={{
+                              color: "var(--status-accepted-text)",
+                              backgroundColor: "var(--status-accepted-tint)",
+                            }}
+                          >
+                            <CheckCircle2
+                              className="size-3"
+                              aria-hidden="true"
+                            />
+                            Active
+                          </span>
+                        )}
+                      </div>
+                      {(cycle.startDate || cycle.endDate) && (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {cycle.startDate ?? "No start"} to{" "}
+                          {cycle.endDate ?? "No end"}
+                        </p>
+                      )}
+                      {cycle.description && (
+                        <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                          {cycle.description}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {!cycle.isActive && (
+                        <button
+                          onClick={() => handleSetActive(cycle)}
+                          disabled={settingActiveId === cycle.id}
+                          className="px-2.5 h-8 text-xs font-medium border border-border rounded-md text-foreground hover:bg-accent disabled:opacity-50 transition-colors"
+                        >
+                          {settingActiveId === cycle.id
+                            ? "Setting..."
+                            : "Set Active"}
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setDuplicatingCycle(cycle)}
+                        aria-label={`Duplicate ${cycle.name}'s contents to another cycle`}
+                        title="Duplicate cycle contents to another cycle"
+                        className="p-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
+                      >
+                        <Copy className="size-4" aria-hidden="true" />
+                      </button>
+                      <button
+                        onClick={() => openEdit(cycle)}
+                        aria-label={`Edit ${cycle.name}`}
+                        className="p-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
+                      >
+                        <Pencil className="size-4" aria-hidden="true" />
+                      </button>
+                      {!cycle.isActive && (
+                        <button
+                          onClick={() => setArchiving(cycle)}
+                          aria-label={`Archive ${cycle.name}`}
+                          title="Archive cycle"
+                          className="p-2 text-muted-foreground hover:text-amber-600 hover:bg-accent rounded-md transition-colors"
+                        >
+                          <Archive className="size-4" aria-hidden="true" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {archivedCycles.length > 0 && (
+              <div className="pt-1">
+                <button
+                  onClick={() => setShowArchived((v) => !v)}
+                  className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <ChevronDown
+                    className={`size-3.5 transition-transform ${showArchived ? "rotate-180" : ""}`}
+                    aria-hidden="true"
+                  />
+                  {showArchived ? "Hide" : "Show"} archived cycles (
+                  {archivedCycles.length})
+                </button>
+
+                {showArchived && (
+                  <div className="space-y-2 mt-2">
+                    {archivedCycles.map((cycle) => (
+                      <div
+                        key={cycle.id}
+                        className="flex items-center justify-between gap-3 rounded-lg border border-dashed border-border px-4 py-3 bg-muted/20"
+                      >
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium text-muted-foreground truncate">
+                              {cycle.name}
+                            </p>
+                            <span className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground">
+                              <Archive className="size-3" aria-hidden="true" />
+                              Archived
+                            </span>
+                          </div>
+                          {(cycle.startDate || cycle.endDate) && (
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {cycle.startDate ?? "No start"} to{" "}
+                              {cycle.endDate ?? "No end"}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            onClick={() => handleUnarchive(cycle)}
+                            disabled={unarchivingId === cycle.id}
+                            className="inline-flex items-center gap-1.5 px-2.5 h-8 text-xs font-medium border border-border rounded-md text-foreground hover:bg-accent disabled:opacity-50 transition-colors"
+                          >
+                            <ArchiveRestore
+                              className="size-3.5"
+                              aria-hidden="true"
+                            />
+                            {unarchivingId === cycle.id
+                              ? "Restoring..."
+                              : "Restore"}
+                          </button>
+                          <button
+                            onClick={() => setDuplicatingCycle(cycle)}
+                            aria-label={`Duplicate ${cycle.name}'s contents to another cycle`}
+                            title="Duplicate cycle contents to another cycle"
+                            className="p-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
+                          >
+                            <Copy className="size-4" aria-hidden="true" />
+                          </button>
+                          <button
+                            onClick={() => setDeletingCycle(cycle)}
+                            aria-label={`Permanently delete ${cycle.name}`}
+                            title="Permanently delete cycle"
+                            className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
+                          >
+                            <Trash2 className="size-4" aria-hidden="true" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -482,6 +710,14 @@ export function CycleManagementCard() {
           sourceCycle={duplicatingCycle}
           cycles={cycles}
           onClose={() => setDuplicatingCycle(null)}
+        />
+      )}
+
+      {deletingCycle && (
+        <DeleteCycleModal
+          cycle={deletingCycle}
+          onConfirm={handleDelete}
+          onCancel={() => setDeletingCycle(null)}
         />
       )}
     </div>

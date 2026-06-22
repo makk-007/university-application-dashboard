@@ -14,6 +14,7 @@ function rowToCycle(row: any): ApplicationCycle {
     startDate: row.start_date ?? null,
     endDate: row.end_date ?? null,
     isActive: row.is_active ?? false,
+    isArchived: row.is_archived ?? false,
     createdAt: row.created_at,
   };
 }
@@ -54,7 +55,9 @@ export async function getActiveCycle(): Promise<ApplicationCycle | null> {
 }
 
 export async function createCycle(
-  data: Omit<ApplicationCycle, "id" | "createdAt">,
+  data: Omit<ApplicationCycle, "id" | "createdAt" | "isArchived"> & {
+    isArchived?: boolean;
+  },
 ): Promise<ApplicationCycle> {
   const {
     data: { user },
@@ -80,6 +83,7 @@ export async function createCycle(
       start_date: data.startDate ?? null,
       end_date: data.endDate ?? null,
       is_active: data.isActive ?? false,
+      is_archived: data.isActive ? false : (data.isArchived ?? false),
     })
     .select()
     .single();
@@ -143,12 +147,21 @@ export async function setActiveCycle(
 }
 
 export async function archiveCycle(id: string): Promise<void> {
-  // Archiving just deactivates the cycle. We never delete cycles here, since
-  // universities/scholarships use ON DELETE SET NULL and deleting a cycle
-  // would orphan historical applications.
+  // Archiving deactivates the cycle and marks it archived. We never delete
+  // cycles here, since universities/scholarships use ON DELETE SET NULL and
+  // deleting a cycle would orphan historical applications into "All Cycles".
   const { error } = await supabase
     .from("application_cycles")
-    .update({ is_active: false })
+    .update({ is_active: false, is_archived: true })
+    .eq("id", id);
+
+  if (error) throw new Error(parseSupabaseError(error));
+}
+
+export async function unarchiveCycle(id: string): Promise<void> {
+  const { error } = await supabase
+    .from("application_cycles")
+    .update({ is_archived: false })
     .eq("id", id);
 
   if (error) throw new Error(parseSupabaseError(error));
@@ -161,6 +174,41 @@ export async function deleteCycle(id: string): Promise<void> {
     .eq("id", id);
 
   if (error) throw new Error(parseSupabaseError(error));
+}
+
+export interface CycleRecordCounts {
+  universities: number;
+  scholarships: number;
+}
+
+/**
+ * Lightweight count of universities and scholarships linked to a cycle,
+ * used to warn the user before a true delete. Deleting a cycle does not
+ * delete these records (the foreign key is ON DELETE SET NULL), but they
+ * would be orphaned into "All Cycles" with no cycle association, so the
+ * user should know how many records that affects before confirming.
+ */
+export async function getCycleRecordCounts(
+  cycleId: string,
+): Promise<CycleRecordCounts> {
+  const [uniResult, scholResult] = await Promise.all([
+    supabase
+      .from("universities")
+      .select("id", { count: "exact", head: true })
+      .eq("cycle_id", cycleId),
+    supabase
+      .from("scholarships")
+      .select("id", { count: "exact", head: true })
+      .eq("cycle_id", cycleId),
+  ]);
+
+  if (uniResult.error) throw new Error(parseSupabaseError(uniResult.error));
+  if (scholResult.error) throw new Error(parseSupabaseError(scholResult.error));
+
+  return {
+    universities: uniResult.count ?? 0,
+    scholarships: scholResult.count ?? 0,
+  };
 }
 
 export interface DuplicateCycleResult {
