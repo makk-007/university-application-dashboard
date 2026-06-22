@@ -144,3 +144,27 @@ export const getDaysUntil = (date: string | null): number | null => {
     (new Date(date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24),
   );
 };
+
+/** Statuses where a passed deadline indicates a stale, unattended application. */
+const OVERDUE_ELIGIBLE_STATUSES: ApplicationStatus[] = [
+  "not-started",
+  "in-progress",
+];
+
+/**
+ * Whether an application is effectively overdue: its deadline has passed
+ * but the stored status still implies the application is open and
+ * unattended (not started or in progress). This is a purely computed,
+ * presentation-only signal. It never writes back to the stored status, so
+ * the user's own status choice (e.g. manually marking something Submitted
+ * or Withdrawn) always remains authoritative and is never silently
+ * overridden.
+ */
+export const isOverdue = (
+  status: ApplicationStatus,
+  deadline: string | null,
+): boolean => {
+  if (!OVERDUE_ELIGIBLE_STATUSES.includes(status)) return false;
+  const days = getDaysUntil(deadline);
+  return days !== null && days < 0;
+};

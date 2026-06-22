@@ -72,6 +72,13 @@ export interface Scholarship {
   checklist: ChecklistItem[];
 }
 
+export interface StatusHistoryEntry {
+  id: string;
+  fromStatus: ApplicationStatus | null;
+  toStatus: ApplicationStatus;
+  changedAt: string;
+}
+
 export interface User {
   id: string;
   email: string;
