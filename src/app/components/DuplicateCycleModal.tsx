@@ -6,6 +6,7 @@ import {
   duplicateCycleContents,
   DuplicateCycleResult,
 } from "../../services/cycles";
+import { useEscapeKey } from "../hooks/useEscapeKey";
 import { selectCls } from "./ui/input-classes";
 
 interface DuplicateCycleModalProps {
@@ -26,6 +27,7 @@ export function DuplicateCycleModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<DuplicateCycleResult | null>(null);
+  useEscapeKey(onClose, !saving);
 
   const targetCycle = cycles.find((c) => c.id === targetCycleId);
 

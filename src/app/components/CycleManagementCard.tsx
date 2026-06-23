@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { useCycle } from "../context/CycleContext";
 import { ApplicationCycle } from "../types";
 import { getCycleRecordCounts } from "../../services/cycles";
+import { useEscapeKey } from "../hooks/useEscapeKey";
 import { DuplicateCycleModal } from "./DuplicateCycleModal";
 import { inputCls, textareaCls } from "./ui/input-classes";
 import {
@@ -50,6 +51,7 @@ function CycleFormModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  useEscapeKey(onClose, !saving);
 
   const set = (k: string, v: string) => {
     setForm((f) => ({ ...f, [k]: v }));
