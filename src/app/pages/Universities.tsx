@@ -23,6 +23,7 @@ import { useCycle } from "../context/CycleContext";
 import { useUndoableDelete } from "../context/UndoableDeleteContext";
 import { useEscapeKey } from "../hooks/useEscapeKey";
 import { ConfirmDeleteModal } from "../components/ConfirmDeleteModal";
+import { BulkDeleteConfirmModal } from "../components/BulkDeleteConfirmModal";
 import { DuplicateToCycleModal } from "../components/DuplicateToCycleModal";
 import { StatusHistorySection } from "../components/StatusHistorySection";
 import { StatusBadge } from "../components/StatusBadge";
@@ -47,6 +48,7 @@ import {
   createUniversity,
   updateUniversity,
   deleteUniversity,
+  deleteUniversities,
   duplicateUniversity,
   addChecklistItem,
   updateChecklistItem,
@@ -912,6 +914,8 @@ export function Universities() {
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkDuplicate, setShowBulkDuplicate] = useState(false);
+  const [showBulkDelete, setShowBulkDelete] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const PAGE_SIZE = 10;
 
   const handleSort = (key: typeof sortKey) => {
@@ -1014,6 +1018,13 @@ export function Universities() {
     () => sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
     [sorted, page],
   );
+
+  // If deleting (individually or in bulk) removes enough rows that the
+  // current page no longer exists, fall back to the new last page rather
+  // than showing an empty page with pagination controls pointing nowhere.
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   const allOnPageSelected =
     paginated.length > 0 && paginated.every((u) => selectedIds.has(u.id));
@@ -1119,6 +1130,47 @@ export function Universities() {
       load();
     } else {
       selectCycle(targetCycleId);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    const ids = Array.from(selectedIds);
+    setBulkDeleting(true);
+    try {
+      const result = await deleteUniversities(ids);
+      const succeeded = result.succeededIds.length;
+      const failed = result.failures.length;
+
+      if (succeeded > 0) {
+        toast.success(
+          `Deleted ${succeeded} ${succeeded === 1 ? "university" : "universities"}`,
+          failed > 0
+            ? { description: `${failed} could not be deleted` }
+            : undefined,
+        );
+      }
+      if (failed > 0) {
+        toast.error(
+          `${failed} ${failed === 1 ? "university" : "universities"} failed to delete`,
+          {
+            description: result.failures
+              .map((f) => f.message)
+              .slice(0, 3)
+              .join("; "),
+          },
+        );
+      }
+
+      setSelectedIds(new Set());
+      setShowBulkDelete(false);
+      if (selectedUni && ids.includes(selectedUni.id)) setSelectedUni(null);
+      await load();
+    } catch (e: any) {
+      toast.error("Failed to delete selected universities", {
+        description: e.message,
+      });
+    } finally {
+      setBulkDeleting(false);
     }
   };
 
@@ -1238,6 +1290,13 @@ export function Universities() {
               >
                 <Copy className="size-3.5" aria-hidden="true" />
                 Duplicate to Cycle
+              </button>
+              <button
+                onClick={() => setShowBulkDelete(true)}
+                className="inline-flex items-center gap-1.5 px-3 h-8 bg-destructive text-destructive-foreground text-sm font-medium rounded-md hover:bg-destructive/90 transition-colors"
+              >
+                <Trash2 className="size-3.5" aria-hidden="true" />
+                Delete Selected
               </button>
             </div>
           </div>
@@ -1741,6 +1800,16 @@ export function Universities() {
           cycles={cycles}
           onClose={() => setShowBulkDuplicate(false)}
           onConfirm={handleBulkDuplicate}
+        />
+      )}
+
+      {showBulkDelete && (
+        <BulkDeleteConfirmModal
+          count={selectedIds.size}
+          itemLabel="universities"
+          saving={bulkDeleting}
+          onConfirm={handleBulkDelete}
+          onCancel={() => setShowBulkDelete(false)}
         />
       )}
     </div>
