@@ -84,6 +84,16 @@ export interface User {
   email: string;
 }
 
+/**
+ * Result of a bulk delete operation. succeededIds is always populated with
+ * exactly the ids that were actually removed; failures lists any ids that
+ * could not be deleted, with a human-readable reason for each.
+ */
+export interface BulkDeleteResult {
+  succeededIds: string[];
+  failures: { id: string; message: string }[];
+}
+
 // Exchange rates to GHS. Last updated: June 2026.
 // These are approximate mid-market rates - actual conversion will vary.
 export const FX_TO_GHS: Record<string, number> = {

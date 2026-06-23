@@ -29,6 +29,7 @@ import { useCycle } from "../context/CycleContext";
 import { useUndoableDelete } from "../context/UndoableDeleteContext";
 import { useEscapeKey } from "../hooks/useEscapeKey";
 import { ConfirmDeleteModal } from "../components/ConfirmDeleteModal";
+import { BulkDeleteConfirmModal } from "../components/BulkDeleteConfirmModal";
 import { DuplicateToCycleModal } from "../components/DuplicateToCycleModal";
 import { StatusHistorySection } from "../components/StatusHistorySection";
 import { StatusBadge } from "../components/StatusBadge";
@@ -47,6 +48,7 @@ import {
   createScholarship,
   updateScholarship,
   deleteScholarship,
+  deleteScholarships,
   duplicateScholarship,
   addScholarshipChecklistItem,
   updateScholarshipChecklistItem,
@@ -1012,6 +1014,8 @@ export function Scholarships() {
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkDuplicate, setShowBulkDuplicate] = useState(false);
+  const [showBulkDelete, setShowBulkDelete] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const PAGE_SIZE = 9;
 
   const handleSort = (key: typeof sortKey) => {
@@ -1108,6 +1112,13 @@ export function Scholarships() {
     [sorted, page],
   );
 
+  // If deleting (individually or in bulk) removes enough rows that the
+  // current page no longer exists, fall back to the new last page rather
+  // than showing an empty page with pagination controls pointing nowhere.
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
   const allOnPageSelected =
     paginated.length > 0 && paginated.every((s) => selectedIds.has(s.id));
 
@@ -1168,6 +1179,131 @@ export function Scholarships() {
       ),
     [scholarships],
   );
+
+  const [chartMode, setChartMode] = useState<"total" | "breakdown">("total");
+
+  // Stable color assignment per scholarship, keyed by id so a given
+  // scholarship always gets the same color across renders and sorts.
+  const FUNDING_CHART_COLORS = [
+    "#1C96C1",
+    "#F59E0B",
+    "#10B981",
+    "#8B5CF6",
+    "#EF4444",
+    "#EC4899",
+    "#14B8A6",
+    "#F97316",
+    "#6366F1",
+    "#84CC16",
+  ];
+  const scholarshipColorById = useMemo(() => {
+    const map = new Map<string, string>();
+    scholarships.forEach((s, i) => {
+      map.set(s.id, FUNDING_CHART_COLORS[i % FUNDING_CHART_COLORS.length]);
+    });
+    return map;
+  }, [scholarships]);
+
+  // Same university set and total as fundingData (preserves sort order and
+  // the existing zero-funding-omitted behavior), but with one numeric key
+  // per linked scholarship so Recharts can render a stacked segment per
+  // scholarship instead of a single combined value.
+  const scholarshipFundingBreakdown = useMemo(() => {
+    return universities
+      .map((u) => {
+        const linked = scholarships.filter((s) =>
+          s.eligibleUniversities.includes(u.id),
+        );
+        const segments: Record<string, number> = {};
+        linked.forEach((s) => {
+          segments[s.id] = Math.round(
+            (s.amount ?? 0) * (FX_TO_GHS[s.currency] ?? 1),
+          );
+        });
+        const total = linked.reduce((sum, s) => sum + (segments[s.id] ?? 0), 0);
+        return {
+          universityId: u.id,
+          name: u.name.length > 22 ? u.name.slice(0, 22) + "…" : u.name,
+          fullName: u.name,
+          total,
+          linkedScholarshipIds: linked.map((s) => s.id),
+          ...segments,
+        };
+      })
+      .filter((d) => d.total > 0)
+      .sort((a, b) => b.total - a.total);
+  }, [scholarships, universities]);
+
+  const scholarshipById = useMemo(
+    () => new Map(scholarships.map((s) => [s.id, s])),
+    [scholarships],
+  );
+
+  // Legend should only list scholarships that actually appear in the
+  // filtered, charted university set, not every scholarship in the system.
+  const chartedScholarshipIds = useMemo(() => {
+    const ids = new Set<string>();
+    scholarshipFundingBreakdown.forEach((d) =>
+      d.linkedScholarshipIds.forEach((id) => ids.add(id)),
+    );
+    return Array.from(ids);
+  }, [scholarshipFundingBreakdown]);
+
+  function FundingBreakdownTooltip({ active, payload, label }: any) {
+    if (!active || !payload || payload.length === 0) return null;
+    const row = payload[0]?.payload;
+    return (
+      <div
+        className="rounded-md border px-3 py-2 text-sm"
+        style={{
+          backgroundColor: "var(--popover)",
+          color: "var(--popover-foreground)",
+          borderColor: "var(--border)",
+        }}
+      >
+        <p className="font-medium mb-1">{row?.fullName ?? label}</p>
+        {payload
+          .filter((p: any) => p.value > 0)
+          .map((p: any) => {
+            const schol = scholarshipById.get(p.dataKey);
+            if (!schol) return null;
+            return (
+              <div key={p.dataKey} className="flex items-center gap-1.5 py-0.5">
+                <span
+                  className="inline-block size-2.5 rounded-sm shrink-0"
+                  style={{ backgroundColor: p.fill }}
+                />
+                <span>
+                  {schol.name}: GHS {Number(p.value).toLocaleString()} (
+                  {schol.coverage})
+                </span>
+              </div>
+            );
+          })}
+      </div>
+    );
+  }
+
+  function FundingBreakdownLegend() {
+    return (
+      <div className="flex flex-wrap gap-3 mt-3 justify-center">
+        {chartedScholarshipIds.map((id) => {
+          const schol = scholarshipById.get(id);
+          if (!schol) return null;
+          return (
+            <div key={id} className="flex items-center gap-1.5 text-xs">
+              <span
+                className="inline-block size-2.5 rounded-sm shrink-0"
+                style={{ backgroundColor: scholarshipColorById.get(id) }}
+              />
+              <span className="text-muted-foreground">{schol.name}</span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
   const handleUpdated = (updated: Scholarship) => {
     setScholarships((prev) =>
       prev.map((s) => (s.id === updated.id ? updated : s)),
@@ -1243,6 +1379,47 @@ export function Scholarships() {
       load();
     } else {
       selectCycle(targetCycleId);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    const ids = Array.from(selectedIds);
+    setBulkDeleting(true);
+    try {
+      const result = await deleteScholarships(ids);
+      const succeeded = result.succeededIds.length;
+      const failed = result.failures.length;
+
+      if (succeeded > 0) {
+        toast.success(
+          `Deleted ${succeeded} ${succeeded === 1 ? "scholarship" : "scholarships"}`,
+          failed > 0
+            ? { description: `${failed} could not be deleted` }
+            : undefined,
+        );
+      }
+      if (failed > 0) {
+        toast.error(
+          `${failed} ${failed === 1 ? "scholarship" : "scholarships"} failed to delete`,
+          {
+            description: result.failures
+              .map((f) => f.message)
+              .slice(0, 3)
+              .join("; "),
+          },
+        );
+      }
+
+      setSelectedIds(new Set());
+      setShowBulkDelete(false);
+      if (selected && ids.includes(selected.id)) setSelected(null);
+      await load();
+    } catch (e: any) {
+      toast.error("Failed to delete selected scholarships", {
+        description: e.message,
+      });
+    } finally {
+      setBulkDeleting(false);
     }
   };
 
@@ -1476,6 +1653,13 @@ export function Scholarships() {
                   >
                     <Copy className="size-3.5" aria-hidden="true" />
                     Duplicate to Cycle
+                  </button>
+                  <button
+                    onClick={() => setShowBulkDelete(true)}
+                    className="inline-flex items-center gap-1.5 px-3 h-8 bg-destructive text-destructive-foreground text-sm font-medium rounded-md hover:bg-destructive/90 transition-colors"
+                  >
+                    <Trash2 className="size-3.5" aria-hidden="true" />
+                    Delete Selected
                   </button>
                 </div>
               </div>
@@ -1738,53 +1922,117 @@ export function Scholarships() {
             ) : (
               <>
                 <div className="bg-card rounded-xl border p-6 card-resting">
-                  <h2 className="text-lg font-semibold text-card-foreground mb-1">
-                    Total Potential Funding per University (GHS)
-                  </h2>
+                  <div className="flex flex-wrap items-start justify-between gap-3 mb-1">
+                    <h2 className="text-lg font-semibold text-card-foreground">
+                      {chartMode === "total"
+                        ? "Total Potential Funding per University (GHS)"
+                        : "Funding Breakdown by Scholarship (GHS)"}
+                    </h2>
+                    <div className="flex gap-1 bg-muted p-1 rounded-lg shrink-0">
+                      {(["total", "breakdown"] as const).map((mode) => (
+                        <button
+                          key={mode}
+                          onClick={() => setChartMode(mode)}
+                          className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${chartMode === mode ? "bg-card text-foreground shadow-[0_1px_2px_rgba(15,23,42,0.08)]" : "text-muted-foreground hover:text-foreground"}`}
+                        >
+                          {mode === "total"
+                            ? "Total Funding"
+                            : "Funding Breakdown"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   <p className="text-sm text-muted-foreground mb-4">
-                    All scholarship amounts converted to GHS
+                    {chartMode === "total"
+                      ? "All scholarship amounts converted to GHS"
+                      : "Each segment is one linked scholarship's contribution"}
                   </p>
-                  <ResponsiveContainer
-                    width="100%"
-                    height={Math.max(300, fundingData.length * 36)}
-                  >
-                    <BarChart
-                      data={fundingData}
-                      layout="vertical"
-                      margin={{ top: 10, right: 24, left: 10, bottom: 10 }}
+                  {chartMode === "total" ? (
+                    <ResponsiveContainer
+                      width="100%"
+                      height={Math.max(300, fundingData.length * 36)}
                     >
-                      <CartesianGrid
-                        strokeDasharray="3 3"
-                        className="stroke-border"
-                      />
-                      <XAxis type="number" tick={{ fontSize: 11 }} />
-                      <YAxis
-                        type="category"
-                        dataKey="name"
-                        tick={{ fontSize: 11 }}
-                        width={150}
-                      />
-                      <Tooltip
-                        formatter={(v) => [
-                          `GHS ${Number(v).toLocaleString()}`,
-                          "Funding",
-                        ]}
-                        contentStyle={{
-                          backgroundColor: "var(--popover)",
-                          color: "var(--popover-foreground)",
-                          border: "1px solid var(--border)",
-                          borderRadius: "var(--radius-md)",
-                        }}
-                        itemStyle={{ color: "var(--popover-foreground)" }}
-                        labelStyle={{ color: "var(--popover-foreground)" }}
-                      />
-                      <Bar
-                        dataKey="value"
-                        fill="var(--brand-600)"
-                        radius={[0, 6, 6, 0]}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
+                      <BarChart
+                        data={fundingData}
+                        layout="vertical"
+                        margin={{ top: 10, right: 24, left: 10, bottom: 10 }}
+                      >
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          className="stroke-border"
+                        />
+                        <XAxis type="number" tick={{ fontSize: 11 }} />
+                        <YAxis
+                          type="category"
+                          dataKey="name"
+                          tick={{ fontSize: 11 }}
+                          width={150}
+                        />
+                        <Tooltip
+                          formatter={(v) => [
+                            `GHS ${Number(v).toLocaleString()}`,
+                            "Funding",
+                          ]}
+                          contentStyle={{
+                            backgroundColor: "var(--popover)",
+                            color: "var(--popover-foreground)",
+                            border: "1px solid var(--border)",
+                            borderRadius: "var(--radius-md)",
+                          }}
+                          itemStyle={{ color: "var(--popover-foreground)" }}
+                          labelStyle={{ color: "var(--popover-foreground)" }}
+                        />
+                        <Bar
+                          dataKey="value"
+                          fill="var(--brand-600)"
+                          radius={[0, 6, 6, 0]}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <>
+                      <ResponsiveContainer
+                        width="100%"
+                        height={Math.max(
+                          300,
+                          scholarshipFundingBreakdown.length * 36,
+                        )}
+                      >
+                        <BarChart
+                          data={scholarshipFundingBreakdown}
+                          layout="vertical"
+                          margin={{ top: 10, right: 24, left: 10, bottom: 10 }}
+                        >
+                          <CartesianGrid
+                            strokeDasharray="3 3"
+                            className="stroke-border"
+                          />
+                          <XAxis type="number" tick={{ fontSize: 11 }} />
+                          <YAxis
+                            type="category"
+                            dataKey="name"
+                            tick={{ fontSize: 11 }}
+                            width={150}
+                          />
+                          <Tooltip content={<FundingBreakdownTooltip />} />
+                          {chartedScholarshipIds.map((id, i) => (
+                            <Bar
+                              key={id}
+                              dataKey={id}
+                              stackId="funding"
+                              fill={scholarshipColorById.get(id)}
+                              radius={
+                                i === chartedScholarshipIds.length - 1
+                                  ? [0, 6, 6, 0]
+                                  : [0, 0, 0, 0]
+                              }
+                            />
+                          ))}
+                        </BarChart>
+                      </ResponsiveContainer>
+                      <FundingBreakdownLegend />
+                    </>
+                  )}
                 </div>
                 <div className="bg-card rounded-xl border card-resting overflow-hidden">
                   <table className="w-full">
@@ -1853,6 +2101,16 @@ export function Scholarships() {
           cycles={cycles}
           onClose={() => setShowBulkDuplicate(false)}
           onConfirm={handleBulkDuplicate}
+        />
+      )}
+
+      {showBulkDelete && (
+        <BulkDeleteConfirmModal
+          count={selectedIds.size}
+          itemLabel="scholarships"
+          saving={bulkDeleting}
+          onConfirm={handleBulkDelete}
+          onCancel={() => setShowBulkDelete(false)}
         />
       )}
     </div>

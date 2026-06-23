@@ -4,6 +4,7 @@ import {
   ChecklistItem,
   ApplicationStatus,
   DEFAULT_SCHOLARSHIP_CHECKLIST_ITEMS,
+  BulkDeleteResult,
 } from "../app/types";
 import { parseSupabaseError } from "./errors";
 
@@ -201,6 +202,37 @@ export async function updateScholarship(
 export async function deleteScholarship(id: string): Promise<void> {
   const { error } = await supabase.from("scholarships").delete().eq("id", id);
   if (error) throw new Error(parseSupabaseError(error));
+}
+
+/**
+ * Delete many scholarships in a single request when possible. Same
+ * fast-path-then-fallback approach as deleteUniversities: a single
+ * `DELETE ... WHERE id IN (...)` is atomic, so it cannot partially fail;
+ * if that call itself fails, fall back to per-row deletes so deletable
+ * rows still get removed and the rest are reported back by id.
+ */
+export async function deleteScholarships(
+  ids: string[],
+): Promise<BulkDeleteResult> {
+  if (ids.length === 0) return { succeededIds: [], failures: [] };
+
+  const { error } = await supabase.from("scholarships").delete().in("id", ids);
+
+  if (!error) {
+    return { succeededIds: ids, failures: [] };
+  }
+
+  const succeededIds: string[] = [];
+  const failures: BulkDeleteResult["failures"] = [];
+  for (const id of ids) {
+    try {
+      await deleteScholarship(id);
+      succeededIds.push(id);
+    } catch (e: any) {
+      failures.push({ id, message: e.message });
+    }
+  }
+  return { succeededIds, failures };
 }
 
 /**

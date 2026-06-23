@@ -4,6 +4,7 @@ import {
   ChecklistItem,
   ApplicationStatus,
   DEFAULT_CHECKLIST_ITEMS,
+  BulkDeleteResult,
 } from "../app/types";
 import { parseSupabaseError } from "./errors";
 
@@ -185,6 +186,41 @@ export async function updateUniversity(
 export async function deleteUniversity(id: string): Promise<void> {
   const { error } = await supabase.from("universities").delete().eq("id", id);
   if (error) throw new Error(parseSupabaseError(error));
+}
+
+/**
+ * Delete many universities in a single request when possible. A single
+ * `DELETE ... WHERE id IN (...)` is one atomic statement: if it fails, no
+ * rows in that call were deleted, so a true partial failure cannot occur
+ * from the bulk call itself. If the bulk call fails (for example, an RLS
+ * or constraint issue affecting a specific row), fall back to deleting
+ * each row individually so the rows that are deletable still get deleted,
+ * and the ones that aren't are reported back by id.
+ */
+export async function deleteUniversities(
+  ids: string[],
+): Promise<BulkDeleteResult> {
+  if (ids.length === 0) return { succeededIds: [], failures: [] };
+
+  const { error } = await supabase.from("universities").delete().in("id", ids);
+
+  if (!error) {
+    return { succeededIds: ids, failures: [] };
+  }
+
+  // Bulk call failed; fall back to per-row deletes to isolate which
+  // specific records are the problem rather than failing the whole batch.
+  const succeededIds: string[] = [];
+  const failures: BulkDeleteResult["failures"] = [];
+  for (const id of ids) {
+    try {
+      await deleteUniversity(id);
+      succeededIds.push(id);
+    } catch (e: any) {
+      failures.push({ id, message: e.message });
+    }
+  }
+  return { succeededIds, failures };
 }
 
 /**
