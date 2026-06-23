@@ -27,6 +27,7 @@ import {
 } from "../types";
 import { useCycle } from "../context/CycleContext";
 import { useUndoableDelete } from "../context/UndoableDeleteContext";
+import { useEscapeKey } from "../hooks/useEscapeKey";
 import { ConfirmDeleteModal } from "../components/ConfirmDeleteModal";
 import { DuplicateToCycleModal } from "../components/DuplicateToCycleModal";
 import { StatusHistorySection } from "../components/StatusHistorySection";
@@ -407,6 +408,7 @@ function ScholarshipDetailDrawer({
   const [savingField, setSavingField] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  useEscapeKey(onClose, !showDeleteModal && !showDuplicateModal);
   const [notes, setNotes] = useState(scholarship.notes ?? "");
   const [newCheckItem, setNewCheckItem] = useState("");
   const [notesTimer, setNotesTimer] = useState<ReturnType<

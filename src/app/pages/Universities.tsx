@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { University, ApplicationStatus } from "../types";
 import { useCycle } from "../context/CycleContext";
 import { useUndoableDelete } from "../context/UndoableDeleteContext";
+import { useEscapeKey } from "../hooks/useEscapeKey";
 import { ConfirmDeleteModal } from "../components/ConfirmDeleteModal";
 import { DuplicateToCycleModal } from "../components/DuplicateToCycleModal";
 import { StatusHistorySection } from "../components/StatusHistorySection";
@@ -358,6 +359,7 @@ function UniversityDetailDrawer({
   const [savingField, setSavingField] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  useEscapeKey(onClose, !showDeleteModal && !showDuplicateModal);
   const [notes, setNotes] = useState(university.notes ?? "");
   const [newCheckItem, setNewCheckItem] = useState("");
   const [notesTimer, setNotesTimer] = useState<ReturnType<
@@ -1304,7 +1306,7 @@ export function Universities() {
           </div>
         ) : (
           <>
-            <div className="bg-card rounded-xl border card-resting overflow-hidden">
+            <div className="bg-card rounded-xl border card-resting overflow-hidden hidden sm:block">
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-muted/50 border-b border-border">
@@ -1560,7 +1562,21 @@ export function Universities() {
 
         {/* Mobile card list - visible on small screens only */}
         <div className="sm:hidden space-y-3">
-          {filtered.length === 0 ? (
+          {loading ? (
+            Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={i}
+                className="bg-card rounded-xl border card-resting p-4 space-y-3"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-5 w-16 rounded-md" />
+                </div>
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-1.5 w-full rounded-full" />
+              </div>
+            ))
+          ) : error ? null : filtered.length === 0 ? (
             <div className="text-center py-16">
               <GraduationCap
                 className="size-10 text-muted-foreground/30 mx-auto mb-3"
@@ -1666,6 +1682,32 @@ export function Universities() {
             })
           )}
         </div>
+
+        {totalPages > 1 && (
+          <div className="sm:hidden flex items-center justify-between mt-4">
+            <p className="text-xs text-muted-foreground tabular-nums">
+              Page {page} of {totalPages}
+            </p>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                aria-label="Previous page"
+                className="h-9 px-3 flex items-center justify-center rounded-md border border-border text-sm disabled:opacity-40 hover:bg-accent transition-colors"
+              >
+                ‹ Prev
+              </button>
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                aria-label="Next page"
+                className="h-9 px-3 flex items-center justify-center rounded-md border border-border text-sm disabled:opacity-40 hover:bg-accent transition-colors"
+              >
+                Next ›
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <AnimatePresence>

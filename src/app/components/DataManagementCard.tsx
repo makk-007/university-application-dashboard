@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useCycle } from "../context/CycleContext";
+import { useEscapeKey } from "../hooks/useEscapeKey";
 import {
   getUniversities,
   importUniversities,
@@ -230,6 +231,7 @@ function ImportPreviewModal({
     created: number;
     failures: string[];
   } | null>(null);
+  useEscapeKey(onClose, !importing);
 
   const cycleIdByName = new Map(
     cycles.map((c) => [c.name.toLowerCase(), c.id]),

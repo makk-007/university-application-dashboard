@@ -2,6 +2,7 @@ import { useState, ReactNode } from "react";
 import { motion } from "motion/react";
 import { Copy, X, AlertCircle, Loader2 } from "lucide-react";
 import { ApplicationCycle } from "../types";
+import { useEscapeKey } from "../hooks/useEscapeKey";
 import { selectCls } from "./ui/input-classes";
 
 interface DuplicateToCycleModalProps {
@@ -30,6 +31,7 @@ export function DuplicateToCycleModal({
   const [targetCycleId, setTargetCycleId] = useState(defaultTarget);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  useEscapeKey(onClose, !saving);
 
   const handleConfirm = async () => {
     if (!targetCycleId) return;
