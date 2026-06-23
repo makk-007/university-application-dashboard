@@ -20,8 +20,11 @@ import {
 import { toast } from "sonner";
 import { University, ApplicationStatus } from "../types";
 import { useCycle } from "../context/CycleContext";
+import { useUndoableDelete } from "../context/UndoableDeleteContext";
+import { useEscapeKey } from "../hooks/useEscapeKey";
 import { ConfirmDeleteModal } from "../components/ConfirmDeleteModal";
 import { DuplicateToCycleModal } from "../components/DuplicateToCycleModal";
+import { StatusHistorySection } from "../components/StatusHistorySection";
 import { StatusBadge } from "../components/StatusBadge";
 import { Skeleton } from "../components/ui/skeleton";
 import {
@@ -31,7 +34,9 @@ import {
   UNI_STATUSES,
   getDaysUntil,
   getDeadlineUrgency,
+  isOverdue,
 } from "../utils/statusConfig";
+import { OverdueBadge } from "../components/OverdueBadge";
 import {
   inputCls,
   selectCls,
@@ -47,6 +52,10 @@ import {
   updateChecklistItem,
   deleteChecklistItem,
 } from "../../services/universities";
+import {
+  logUniversityStatusChange,
+  getUniversityStatusHistory,
+} from "../../services/statusHistory";
 
 const REGIONS = [
   "North America",
@@ -339,6 +348,7 @@ function UniversityDetailDrawer({
   onDuplicated: (u: University) => void;
 }) {
   const { selectedCycleId, cycles } = useCycle();
+  const { deleteWithUndo } = useUndoableDelete();
   const cycleName = university.cycleId
     ? cycles.find((c) => c.id === university.cycleId)?.name
     : null;
@@ -349,6 +359,7 @@ function UniversityDetailDrawer({
   const [savingField, setSavingField] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  useEscapeKey(onClose, !showDeleteModal && !showDuplicateModal);
   const [notes, setNotes] = useState(university.notes ?? "");
   const [newCheckItem, setNewCheckItem] = useState("");
   const [notesTimer, setNotesTimer] = useState<ReturnType<
@@ -400,6 +411,7 @@ function UniversityDetailDrawer({
 
   const handleStatusChange = async (status: ApplicationStatus) => {
     setSavingStatus(true);
+    const previousStatus = uni.status;
     try {
       await updateUniversity(uni.id, { status });
       const updated = { ...uni, status };
@@ -408,6 +420,7 @@ function UniversityDetailDrawer({
       toast.success("Status updated", {
         description: statusConfig[status].label,
       });
+      logUniversityStatusChange(uni.id, previousStatus, status);
     } catch (e: any) {
       toast.error("Failed to update status", { description: e.message });
     } finally {
@@ -464,28 +477,34 @@ function UniversityDetailDrawer({
     }
   };
 
-  const handleDeleteCheck = async (itemId: string) => {
-    try {
-      await deleteChecklistItem(itemId);
-      const updated = {
-        ...uni,
-        checklist: uni.checklist.filter((c) => c.id !== itemId),
-      };
-      setUni(updated);
-      onUpdated(updated);
-    } catch (e: any) {
-      toast.error("Failed to remove requirement", { description: e.message });
-    }
-  };
+  const handleDeleteCheck = (itemId: string) => {
+    const removedItem = uni.checklist.find((c) => c.id === itemId);
+    if (!removedItem) return;
+    const beforeChecklist = uni.checklist;
 
-  const handleDelete = async () => {
-    try {
-      await deleteUniversity(uni.id);
-      toast.success("University deleted", { description: uni.name });
-      onDeleted(uni.id);
-    } catch (e: any) {
-      toast.error("Failed to delete university", { description: e.message });
-    }
+    deleteWithUndo({
+      id: itemId,
+      label: "Requirement removed",
+      description: removedItem.item,
+      onRemoveLocally: () => {
+        const updated = {
+          ...uni,
+          checklist: uni.checklist.filter((c) => c.id !== itemId),
+        };
+        setUni(updated);
+        onUpdated(updated);
+      },
+      onRestoreLocally: () => {
+        const updated = { ...uni, checklist: beforeChecklist };
+        setUni(updated);
+        onUpdated(updated);
+      },
+      performDelete: () => deleteChecklistItem(itemId),
+      onDeleteFailed: (e) =>
+        toast.error("Failed to remove requirement", {
+          description: e.message,
+        }),
+    });
   };
 
   const handleDuplicate = async (targetCycleId: string | null) => {
@@ -515,10 +534,17 @@ function UniversityDetailDrawer({
             <h2 className="text-xl font-semibold text-card-foreground truncate">
               {uni.name}
             </h2>
-            {showCycleBadge && (
-              <span className="inline-flex items-center mt-1 px-2 py-0.5 rounded-md bg-muted text-muted-foreground text-xs font-medium">
-                {cycleName}
-              </span>
+            {(showCycleBadge || isOverdue(uni.status, uni.deadline)) && (
+              <div className="flex items-center gap-2 mt-1">
+                {showCycleBadge && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-muted text-muted-foreground text-xs font-medium">
+                    {cycleName}
+                  </span>
+                )}
+                {isOverdue(uni.status, uni.deadline) && (
+                  <OverdueBadge size="sm" />
+                )}
+              </div>
             )}
           </div>
           <div className="flex items-center gap-1 shrink-0">
@@ -765,6 +791,10 @@ function UniversityDetailDrawer({
             </div>
           </div>
 
+          <StatusHistorySection
+            fetchHistory={() => getUniversityStatusHistory(uni.id)}
+          />
+
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm font-medium text-foreground">
@@ -830,9 +860,12 @@ function UniversityDetailDrawer({
         <ConfirmDeleteModal
           itemName={uni.name}
           itemType="university"
+          linkedCount={uni.scholarships?.length ?? 0}
+          linkedLabel="scholarships"
           onConfirm={() => {
             setShowDeleteModal(false);
-            handleDelete();
+            onDeleted(uni.id);
+            onClose();
           }}
           onCancel={() => setShowDeleteModal(false)}
         />
@@ -840,7 +873,7 @@ function UniversityDetailDrawer({
 
       {showDuplicateModal && (
         <DuplicateToCycleModal
-          itemName={uni.name}
+          description={uni.name}
           itemLabel="university"
           sourceCycleId={uni.cycleId}
           cycles={cycles}
@@ -860,6 +893,7 @@ export function Universities() {
     selectCycle,
     loading: cyclesLoading,
   } = useCycle();
+  const { deleteWithUndo } = useUndoableDelete();
   const [universities, setUniversities] = useState<University[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -876,6 +910,8 @@ export function Universities() {
   >("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [page, setPage] = useState(1);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkDuplicate, setShowBulkDuplicate] = useState(false);
   const PAGE_SIZE = 10;
 
   const handleSort = (key: typeof sortKey) => {
@@ -935,7 +971,8 @@ export function Universities() {
 
   useEffect(() => {
     setPage(1);
-  }, [searchQuery, statusFilter, regionFilter]);
+    setSelectedIds(new Set());
+  }, [searchQuery, statusFilter, regionFilter, selectedCycleId]);
 
   const filtered = useMemo(
     () =>
@@ -978,6 +1015,34 @@ export function Universities() {
     [sorted, page],
   );
 
+  const allOnPageSelected =
+    paginated.length > 0 && paginated.every((u) => selectedIds.has(u.id));
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAllOnPage = () => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allOnPageSelected) {
+        paginated.forEach((u) => next.delete(u.id));
+      } else {
+        paginated.forEach((u) => next.add(u.id));
+      }
+      return next;
+    });
+  };
+
+  const selectedUniversities = universities.filter((u) =>
+    selectedIds.has(u.id),
+  );
+
   const handleUpdated = (updated: University) => {
     setUniversities((prev) =>
       prev.map((u) => (u.id === updated.id ? updated : u)),
@@ -986,8 +1051,27 @@ export function Universities() {
   };
 
   const handleDeleted = (id: string) => {
-    setUniversities((prev) => prev.filter((u) => u.id !== id));
-    if (selectedUni?.id === id) setSelectedUni(null);
+    const removedUni = universities.find((u) => u.id === id);
+    if (!removedUni) return;
+
+    deleteWithUndo({
+      id,
+      label: "University deleted",
+      description: removedUni.name,
+      onRemoveLocally: () => {
+        setUniversities((prev) => prev.filter((u) => u.id !== id));
+        setSelectedUni(null);
+      },
+      onRestoreLocally: () => {
+        setUniversities((prev) => [...prev, removedUni]);
+        setSelectedUni(removedUni);
+      },
+      performDelete: () => deleteUniversity(id),
+      onDeleteFailed: (e) =>
+        toast.error("Failed to delete university", {
+          description: e.message,
+        }),
+    });
   };
 
   const handleDuplicated = (duplicate: University) => {
@@ -1003,6 +1087,38 @@ export function Universities() {
       // details must be immediately editable after duplication.
       setPendingOpenId(duplicate.id);
       selectCycle(duplicate.cycleId);
+    }
+  };
+
+  const handleBulkDuplicate = async (targetCycleId: string | null) => {
+    const ids = Array.from(selectedIds);
+    const results = await Promise.allSettled(
+      ids.map((id) => duplicateUniversity(id, targetCycleId)),
+    );
+    const succeeded = results.filter(
+      (r): r is PromiseFulfilledResult<University> => r.status === "fulfilled",
+    ).length;
+    const failed = results.length - succeeded;
+
+    if (succeeded > 0) {
+      toast.success(
+        `Duplicated ${succeeded} ${succeeded === 1 ? "university" : "universities"}`,
+        failed > 0
+          ? { description: `${failed} could not be duplicated` }
+          : undefined,
+      );
+    }
+    if (succeeded === 0 && failed > 0) {
+      toast.error("Failed to duplicate universities");
+    }
+
+    setSelectedIds(new Set());
+    setShowBulkDuplicate(false);
+
+    if (targetCycleId === selectedCycleId) {
+      load();
+    } else {
+      selectCycle(targetCycleId);
     }
   };
 
@@ -1103,6 +1219,30 @@ export function Universities() {
           </div>
         </div>
 
+        {selectedIds.size > 0 && (
+          <div className="flex items-center justify-between gap-3 bg-secondary/50 border border-border rounded-lg px-4 py-3 mb-4 sm:mb-6">
+            <span className="text-sm text-foreground">
+              {selectedIds.size}{" "}
+              {selectedIds.size === 1 ? "university" : "universities"} selected
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="px-3 h-8 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Clear
+              </button>
+              <button
+                onClick={() => setShowBulkDuplicate(true)}
+                className="inline-flex items-center gap-1.5 px-3 h-8 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 transition-colors"
+              >
+                <Copy className="size-3.5" aria-hidden="true" />
+                Duplicate to Cycle
+              </button>
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <div className="bg-card rounded-xl border card-resting overflow-hidden hidden sm:block">
             <div className="overflow-x-auto">
@@ -1166,11 +1306,20 @@ export function Universities() {
           </div>
         ) : (
           <>
-            <div className="bg-card rounded-xl border card-resting overflow-hidden">
+            <div className="bg-card rounded-xl border card-resting overflow-hidden hidden sm:block">
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-muted/50 border-b border-border">
                     <tr>
+                      <th className="w-10 px-4 py-3">
+                        <input
+                          type="checkbox"
+                          checked={allOnPageSelected}
+                          onChange={toggleSelectAllOnPage}
+                          aria-label="Select all universities on this page"
+                          className="size-4 rounded border-border accent-[var(--brand-600)] cursor-pointer"
+                        />
+                      </th>
                       {[
                         { label: "University", key: "name" as const },
                         { label: "Region", key: "region" as const },
@@ -1234,6 +1383,18 @@ export function Universities() {
                           onClick={() => setSelectedUni(uni)}
                           className={`hover:bg-muted/30 cursor-pointer transition-colors ${selectedUni?.id === uni.id ? "bg-muted/40" : ""}`}
                         >
+                          <td
+                            className="w-10 px-4 py-4"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.has(uni.id)}
+                              onChange={() => toggleSelected(uni.id)}
+                              aria-label={`Select ${uni.name}`}
+                              className="size-4 rounded border-border accent-[var(--brand-600)] cursor-pointer"
+                            />
+                          </td>
                           <td className="px-6 py-4">
                             <div className="font-medium text-foreground">
                               {uni.name}
@@ -1245,7 +1406,12 @@ export function Universities() {
                             </div>
                           </td>
                           <td className="px-6 py-4">
-                            <StatusBadge status={uni.status} />
+                            <div className="flex items-center gap-1.5">
+                              <StatusBadge status={uni.status} />
+                              {isOverdue(uni.status, uni.deadline) && (
+                                <OverdueBadge size="sm" />
+                              )}
+                            </div>
                           </td>
                           <td className="px-6 py-4">
                             <div className="text-sm text-foreground tabular-nums">
@@ -1396,7 +1562,21 @@ export function Universities() {
 
         {/* Mobile card list - visible on small screens only */}
         <div className="sm:hidden space-y-3">
-          {filtered.length === 0 ? (
+          {loading ? (
+            Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={i}
+                className="bg-card rounded-xl border card-resting p-4 space-y-3"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-5 w-16 rounded-md" />
+                </div>
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-1.5 w-full rounded-full" />
+              </div>
+            ))
+          ) : error ? null : filtered.length === 0 ? (
             <div className="text-center py-16">
               <GraduationCap
                 className="size-10 text-muted-foreground/30 mx-auto mb-3"
@@ -1446,8 +1626,28 @@ export function Universities() {
                   className={`bg-card rounded-xl border card-resting p-4 cursor-pointer hover:card-raised transition-shadow duration-200 ${selectedUni?.id === uni.id ? "ring-2 ring-ring" : ""}`}
                 >
                   <div className="flex items-start justify-between gap-2 mb-3">
-                    <p className="font-medium text-foreground">{uni.name}</p>
-                    <StatusBadge status={uni.status} size="sm" />
+                    <div className="flex items-start gap-2 min-w-0">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(uni.id)}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          toggleSelected(uni.id);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        aria-label={`Select ${uni.name}`}
+                        className="size-4 mt-0.5 rounded border-border accent-[var(--brand-600)] cursor-pointer shrink-0"
+                      />
+                      <p className="font-medium text-foreground truncate">
+                        {uni.name}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <StatusBadge status={uni.status} size="sm" />
+                      {isOverdue(uni.status, uni.deadline) && (
+                        <OverdueBadge size="sm" />
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
                     <span>{uni.region}</span>
@@ -1482,6 +1682,32 @@ export function Universities() {
             })
           )}
         </div>
+
+        {totalPages > 1 && (
+          <div className="sm:hidden flex items-center justify-between mt-4">
+            <p className="text-xs text-muted-foreground tabular-nums">
+              Page {page} of {totalPages}
+            </p>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                aria-label="Previous page"
+                className="h-9 px-3 flex items-center justify-center rounded-md border border-border text-sm disabled:opacity-40 hover:bg-accent transition-colors"
+              >
+                ‹ Prev
+              </button>
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                aria-label="Next page"
+                className="h-9 px-3 flex items-center justify-center rounded-md border border-border text-sm disabled:opacity-40 hover:bg-accent transition-colors"
+              >
+                Next ›
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <AnimatePresence>
@@ -1506,6 +1732,17 @@ export function Universities() {
           />
         )}
       </AnimatePresence>
+
+      {showBulkDuplicate && (
+        <DuplicateToCycleModal
+          description={`${selectedUniversities.length} ${selectedUniversities.length === 1 ? "university" : "universities"}`}
+          itemLabel="university"
+          sourceCycleId={selectedCycleId}
+          cycles={cycles}
+          onClose={() => setShowBulkDuplicate(false)}
+          onConfirm={handleBulkDuplicate}
+        />
+      )}
     </div>
   );
 }

@@ -26,16 +26,21 @@ import {
   FX_TO_GHS,
 } from "../types";
 import { useCycle } from "../context/CycleContext";
+import { useUndoableDelete } from "../context/UndoableDeleteContext";
+import { useEscapeKey } from "../hooks/useEscapeKey";
 import { ConfirmDeleteModal } from "../components/ConfirmDeleteModal";
 import { DuplicateToCycleModal } from "../components/DuplicateToCycleModal";
+import { StatusHistorySection } from "../components/StatusHistorySection";
 import { StatusBadge } from "../components/StatusBadge";
 import { Skeleton } from "../components/ui/skeleton";
+import { OverdueBadge } from "../components/OverdueBadge";
 import {
   statusConfig,
   statusStrong,
   ALL_STATUSES,
   getDaysUntil,
   getDeadlineUrgency,
+  isOverdue,
 } from "../utils/statusConfig";
 import {
   getScholarships,
@@ -49,6 +54,10 @@ import {
   setScholarshipUniversities,
 } from "../../services/scholarships";
 import { getUniversities } from "../../services/universities";
+import {
+  logScholarshipStatusChange,
+  getScholarshipStatusHistory,
+} from "../../services/statusHistory";
 import {
   inputCls,
   selectCls,
@@ -388,6 +397,7 @@ function ScholarshipDetailDrawer({
   onDuplicated: (s: Scholarship) => void;
 }) {
   const { selectedCycleId, cycles } = useCycle();
+  const { deleteWithUndo } = useUndoableDelete();
   const cycleName = scholarship.cycleId
     ? cycles.find((c) => c.id === scholarship.cycleId)?.name
     : null;
@@ -398,6 +408,7 @@ function ScholarshipDetailDrawer({
   const [savingField, setSavingField] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  useEscapeKey(onClose, !showDeleteModal && !showDuplicateModal);
   const [notes, setNotes] = useState(scholarship.notes ?? "");
   const [newCheckItem, setNewCheckItem] = useState("");
   const [notesTimer, setNotesTimer] = useState<ReturnType<
@@ -454,6 +465,7 @@ function ScholarshipDetailDrawer({
   const progress = total > 0 ? (completed / total) * 100 : 0;
   const handleStatusChange = async (status: ApplicationStatus) => {
     setSavingStatus(true);
+    const previousStatus = s.status;
     try {
       await updateScholarship(s.id, { status });
       const updated = { ...s, status };
@@ -462,6 +474,7 @@ function ScholarshipDetailDrawer({
       toast.success("Status updated", {
         description: statusConfig[status].label,
       });
+      logScholarshipStatusChange(s.id, previousStatus, status);
     } catch (e: any) {
       toast.error("Failed to update status", { description: e.message });
     } finally {
@@ -534,27 +547,34 @@ function ScholarshipDetailDrawer({
       toast.error("Failed to add requirement", { description: e.message });
     }
   };
-  const handleDeleteCheck = async (itemId: string) => {
-    try {
-      await deleteScholarshipChecklistItem(itemId);
-      const updated = {
-        ...s,
-        checklist: s.checklist.filter((c) => c.id !== itemId),
-      };
-      setS(updated);
-      onUpdated(updated);
-    } catch (e: any) {
-      toast.error("Failed to remove requirement", { description: e.message });
-    }
-  };
-  const handleDelete = async () => {
-    try {
-      await deleteScholarship(s.id);
-      toast.success("Scholarship deleted", { description: s.name });
-      onDeleted(s.id);
-    } catch (e: any) {
-      toast.error("Failed to delete scholarship", { description: e.message });
-    }
+  const handleDeleteCheck = (itemId: string) => {
+    const removedItem = s.checklist.find((c) => c.id === itemId);
+    if (!removedItem) return;
+    const beforeChecklist = s.checklist;
+
+    deleteWithUndo({
+      id: itemId,
+      label: "Requirement removed",
+      description: removedItem.item,
+      onRemoveLocally: () => {
+        const updated = {
+          ...s,
+          checklist: s.checklist.filter((c) => c.id !== itemId),
+        };
+        setS(updated);
+        onUpdated(updated);
+      },
+      onRestoreLocally: () => {
+        const updated = { ...s, checklist: beforeChecklist };
+        setS(updated);
+        onUpdated(updated);
+      },
+      performDelete: () => deleteScholarshipChecklistItem(itemId),
+      onDeleteFailed: (e) =>
+        toast.error("Failed to remove requirement", {
+          description: e.message,
+        }),
+    });
   };
 
   const handleDuplicate = async (targetCycleId: string | null) => {
@@ -585,10 +605,17 @@ function ScholarshipDetailDrawer({
             <h2 className="text-xl font-semibold text-card-foreground truncate">
               {s.name}
             </h2>
-            {showCycleBadge && (
-              <span className="inline-flex items-center mt-1 px-2 py-0.5 rounded-md bg-muted text-muted-foreground text-xs font-medium">
-                {cycleName}
-              </span>
+            {(showCycleBadge || isOverdue(s.status, s.deadline ?? null)) && (
+              <div className="flex items-center gap-2 mt-1">
+                {showCycleBadge && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-muted text-muted-foreground text-xs font-medium">
+                    {cycleName}
+                  </span>
+                )}
+                {isOverdue(s.status, s.deadline ?? null) && (
+                  <OverdueBadge size="sm" />
+                )}
+              </div>
             )}
           </div>
           <div className="flex items-center gap-1 shrink-0">
@@ -839,6 +866,10 @@ function ScholarshipDetailDrawer({
             </div>
           </div>
 
+          <StatusHistorySection
+            fetchHistory={() => getScholarshipStatusHistory(s.id)}
+          />
+
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm font-medium text-foreground">
@@ -925,9 +956,12 @@ function ScholarshipDetailDrawer({
         <ConfirmDeleteModal
           itemName={s.name}
           itemType="scholarship"
+          linkedCount={s.eligibleUniversities.length}
+          linkedLabel="universities"
           onConfirm={() => {
             setShowDeleteModal(false);
-            handleDelete();
+            onDeleted(s.id);
+            onClose();
           }}
           onCancel={() => setShowDeleteModal(false)}
         />
@@ -935,7 +969,7 @@ function ScholarshipDetailDrawer({
 
       {showDuplicateModal && (
         <DuplicateToCycleModal
-          itemName={s.name}
+          description={s.name}
           itemLabel="scholarship"
           sourceCycleId={s.cycleId}
           cycles={cycles}
@@ -955,6 +989,7 @@ export function Scholarships() {
     selectCycle,
     loading: cyclesLoading,
   } = useCycle();
+  const { deleteWithUndo } = useUndoableDelete();
   const [scholarships, setScholarships] = useState<Scholarship[]>([]);
   const [universities, setUniversities] = useState<University[]>([]);
   const [loading, setLoading] = useState(true);
@@ -975,6 +1010,8 @@ export function Scholarships() {
   >("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [page, setPage] = useState(1);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkDuplicate, setShowBulkDuplicate] = useState(false);
   const PAGE_SIZE = 9;
 
   const handleSort = (key: typeof sortKey) => {
@@ -1071,9 +1108,38 @@ export function Scholarships() {
     [sorted, page],
   );
 
+  const allOnPageSelected =
+    paginated.length > 0 && paginated.every((s) => selectedIds.has(s.id));
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAllOnPage = () => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allOnPageSelected) {
+        paginated.forEach((s) => next.delete(s.id));
+      } else {
+        paginated.forEach((s) => next.add(s.id));
+      }
+      return next;
+    });
+  };
+
+  const selectedScholarships = scholarships.filter((s) =>
+    selectedIds.has(s.id),
+  );
+
   useEffect(() => {
     setPage(1);
-  }, [searchQuery, statusFilter, coverageFilter]);
+    setSelectedIds(new Set());
+  }, [searchQuery, statusFilter, coverageFilter, selectedCycleId]);
 
   const fundingData = useMemo(
     () =>
@@ -1109,8 +1175,27 @@ export function Scholarships() {
     if (selected?.id === updated.id) setSelected(updated);
   };
   const handleDeleted = (id: string) => {
-    setScholarships((prev) => prev.filter((s) => s.id !== id));
-    if (selected?.id === id) setSelected(null);
+    const removedScholarship = scholarships.find((s) => s.id === id);
+    if (!removedScholarship) return;
+
+    deleteWithUndo({
+      id,
+      label: "Scholarship deleted",
+      description: removedScholarship.name,
+      onRemoveLocally: () => {
+        setScholarships((prev) => prev.filter((s) => s.id !== id));
+        setSelected(null);
+      },
+      onRestoreLocally: () => {
+        setScholarships((prev) => [...prev, removedScholarship]);
+        setSelected(removedScholarship);
+      },
+      performDelete: () => deleteScholarship(id),
+      onDeleteFailed: (e) =>
+        toast.error("Failed to delete scholarship", {
+          description: e.message,
+        }),
+    });
   };
 
   const handleDuplicated = (duplicate: Scholarship) => {
@@ -1126,6 +1211,38 @@ export function Scholarships() {
       // details must be immediately editable after duplication.
       setPendingOpenId(duplicate.id);
       selectCycle(duplicate.cycleId);
+    }
+  };
+
+  const handleBulkDuplicate = async (targetCycleId: string | null) => {
+    const ids = Array.from(selectedIds);
+    const results = await Promise.allSettled(
+      ids.map((id) => duplicateScholarship(id, targetCycleId)),
+    );
+    const succeeded = results.filter(
+      (r): r is PromiseFulfilledResult<Scholarship> => r.status === "fulfilled",
+    ).length;
+    const failed = results.length - succeeded;
+
+    if (succeeded > 0) {
+      toast.success(
+        `Duplicated ${succeeded} ${succeeded === 1 ? "scholarship" : "scholarships"}`,
+        failed > 0
+          ? { description: `${failed} could not be duplicated` }
+          : undefined,
+      );
+    }
+    if (succeeded === 0 && failed > 0) {
+      toast.error("Failed to duplicate scholarships");
+    }
+
+    setSelectedIds(new Set());
+    setShowBulkDuplicate(false);
+
+    if (targetCycleId === selectedCycleId) {
+      load();
+    } else {
+      selectCycle(targetCycleId);
     }
   };
 
@@ -1323,6 +1440,47 @@ export function Scholarships() {
                 </div>
               </div>
             </div>
+
+            {paginated.length > 0 && (
+              <div className="flex items-center justify-between gap-3">
+                <label className="inline-flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={allOnPageSelected}
+                    onChange={toggleSelectAllOnPage}
+                    aria-label="Select all scholarships on this page"
+                    className="size-4 rounded border-border accent-[var(--brand-600)] cursor-pointer"
+                  />
+                  Select all on this page
+                </label>
+              </div>
+            )}
+
+            {selectedIds.size > 0 && (
+              <div className="flex items-center justify-between gap-3 bg-secondary/50 border border-border rounded-lg px-4 py-3">
+                <span className="text-sm text-foreground">
+                  {selectedIds.size}{" "}
+                  {selectedIds.size === 1 ? "scholarship" : "scholarships"}{" "}
+                  selected
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setSelectedIds(new Set())}
+                    className="px-3 h-8 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Clear
+                  </button>
+                  <button
+                    onClick={() => setShowBulkDuplicate(true)}
+                    className="inline-flex items-center gap-1.5 px-3 h-8 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 transition-colors"
+                  >
+                    <Copy className="size-3.5" aria-hidden="true" />
+                    Duplicate to Cycle
+                  </button>
+                </div>
+              </div>
+            )}
+
             {filtered.length === 0 ? (
               <div className="bg-card rounded-xl border p-12 text-center card-resting">
                 <DollarSign
@@ -1385,10 +1543,29 @@ export function Scholarships() {
                     >
                       <div className="p-6">
                         <div className="flex items-start justify-between mb-4">
-                          <h3 className="text-base font-semibold text-card-foreground flex-1 pr-2">
-                            {schol.name}
-                          </h3>
-                          <StatusBadge status={schol.status} size="sm" />
+                          <div className="flex items-start gap-2 flex-1 pr-2 min-w-0">
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.has(schol.id)}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                toggleSelected(schol.id);
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                              aria-label={`Select ${schol.name}`}
+                              className="size-4 mt-1 rounded border-border accent-[var(--brand-600)] cursor-pointer shrink-0"
+                            />
+                            <h3 className="text-base font-semibold text-card-foreground">
+                              {schol.name}
+                            </h3>
+                          </div>
+                          <div className="flex flex-col items-end gap-1.5 shrink-0">
+                            <StatusBadge status={schol.status} size="sm" />
+                            {isOverdue(
+                              schol.status,
+                              schol.deadline ?? null,
+                            ) && <OverdueBadge size="sm" />}
+                          </div>
                         </div>
                         <div className="space-y-3">
                           <div className="flex items-center justify-between">
@@ -1667,6 +1844,17 @@ export function Scholarships() {
           />
         )}
       </AnimatePresence>
+
+      {showBulkDuplicate && (
+        <DuplicateToCycleModal
+          description={`${selectedScholarships.length} ${selectedScholarships.length === 1 ? "scholarship" : "scholarships"}`}
+          itemLabel="scholarship"
+          sourceCycleId={selectedCycleId}
+          cycles={cycles}
+          onClose={() => setShowBulkDuplicate(false)}
+          onConfirm={handleBulkDuplicate}
+        />
+      )}
     </div>
   );
 }

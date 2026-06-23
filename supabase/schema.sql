@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS application_cycles (
   start_date DATE,
   end_date DATE,
   is_active BOOLEAN NOT NULL DEFAULT FALSE,
+  is_archived BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -99,6 +100,32 @@ CREATE TABLE IF NOT EXISTS scholarship_checklist (
   completed BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- ============================================================
+-- STATUS HISTORY TABLE
+-- ============================================================
+-- Records every status change for a university or scholarship. Exactly one
+-- of university_id / scholarship_id is set per row. Scoped by user_id
+-- directly (rather than requiring a join) so RLS stays simple and fast.
+CREATE TABLE IF NOT EXISTS status_history (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  university_id UUID REFERENCES universities(id) ON DELETE CASCADE,
+  scholarship_id UUID REFERENCES scholarships(id) ON DELETE CASCADE,
+  from_status TEXT,
+  to_status TEXT NOT NULL,
+  changed_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT status_history_exactly_one_parent CHECK (
+    (university_id IS NOT NULL AND scholarship_id IS NULL) OR
+    (university_id IS NULL AND scholarship_id IS NOT NULL)
+  )
+);
+
+CREATE INDEX IF NOT EXISTS status_history_university_idx
+  ON status_history(university_id) WHERE university_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS status_history_scholarship_idx
+  ON status_history(scholarship_id) WHERE scholarship_id IS NOT NULL;
 
 -- ============================================================
 -- UPDATED_AT TRIGGER
@@ -184,6 +211,13 @@ CREATE POLICY "Users can manage checklist for their scholarships"
     )
   );
 
+-- Status History
+ALTER TABLE status_history ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can manage their own status history"
+  ON status_history FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
 -- ============================================================
 -- INDEXES for performance
 -- ============================================================
@@ -197,5 +231,6 @@ CREATE INDEX IF NOT EXISTS idx_scholarships_cycle_id ON scholarships(cycle_id);
 CREATE INDEX IF NOT EXISTS idx_application_cycles_user_id ON application_cycles(user_id);
 CREATE INDEX IF NOT EXISTS idx_checklist_university_id ON checklist(university_id);
 CREATE INDEX IF NOT EXISTS idx_scholarship_checklist_id ON scholarship_checklist(scholarship_id);
+CREATE INDEX IF NOT EXISTS idx_status_history_user_id ON status_history(user_id);
 CREATE INDEX IF NOT EXISTS idx_scholarship_universities_scholarship ON scholarship_universities(scholarship_id);
 CREATE INDEX IF NOT EXISTS idx_scholarship_universities_university ON scholarship_universities(university_id);

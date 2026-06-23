@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { supabase } from "../lib/supabase";
 import { FX_TO_GHS } from "../types";
 import { CycleManagementCard } from "../components/CycleManagementCard";
+import { DataManagementCard } from "../components/DataManagementCard";
 
 const readonlyCls =
   "flex h-9 w-full rounded-md border border-border bg-muted/50 px-3 py-1 text-sm text-muted-foreground cursor-not-allowed";
@@ -72,6 +73,9 @@ export function Settings() {
 
         {/* Application Cycles */}
         <CycleManagementCard />
+
+        {/* Data Management */}
+        <DataManagementCard />
 
         {/* Appearance */}
         <div className="bg-card rounded-xl border card-resting overflow-hidden">
