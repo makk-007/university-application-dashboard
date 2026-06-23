@@ -16,6 +16,7 @@ export interface ApplicationCycle {
   startDate?: string | null;
   endDate?: string | null;
   isActive: boolean;
+  isArchived: boolean;
   createdAt?: string;
 }
 
@@ -71,6 +72,13 @@ export interface Scholarship {
   checklist: ChecklistItem[];
 }
 
+export interface StatusHistoryEntry {
+  id: string;
+  fromStatus: ApplicationStatus | null;
+  toStatus: ApplicationStatus;
+  changedAt: string;
+}
+
 export interface User {
   id: string;
   email: string;
@@ -93,4 +101,12 @@ export const DEFAULT_CHECKLIST_ITEMS = [
   "Transcripts",
   "English Test (TOEFL/IELTS)",
   "Scholarship Application",
+];
+
+export const DEFAULT_SCHOLARSHIP_CHECKLIST_ITEMS = [
+  "CV/Resume",
+  "Scholarship Essay",
+  "Recommendation Letters",
+  "Transcripts",
+  "Proof of Admission/Enrollment",
 ];

@@ -188,6 +188,71 @@ export async function deleteUniversity(id: string): Promise<void> {
 }
 
 /**
+ * Create universities from parsed CSV import rows. Each row becomes a new,
+ * independent record (this never updates or merges into existing rows).
+ * If cycleName matches an existing cycle (case-insensitive), the new
+ * record is assigned to it; otherwise it is created with no cycle and
+ * only appears under "All Cycles".
+ */
+export async function importUniversities(
+  rows: {
+    name: string;
+    region: string;
+    status: University["status"];
+    tuition: number;
+    currency: string;
+    startDate: string | null;
+    deadline: string | null;
+    applicationLink: string;
+    notes: string;
+    checklistItems: string[];
+    cycleId: string | null;
+  }[],
+): Promise<{ created: number; failures: string[] }> {
+  let created = 0;
+  const failures: string[] = [];
+
+  for (const row of rows) {
+    try {
+      const uni = await createUniversity({
+        cycleId: row.cycleId,
+        name: row.name,
+        region: row.region,
+        status: row.status,
+        tuition: row.tuition,
+        currency: row.currency,
+        startDate: row.startDate,
+        deadline: row.deadline,
+        applicationLink: row.applicationLink,
+        notes: row.notes,
+      });
+
+      // createUniversity seeds the default checklist; replace it with the
+      // imported checklist items (if any) so the import reflects exactly
+      // what was in the spreadsheet rather than a generic template.
+      await Promise.all(
+        uni.checklist.map((item) => deleteChecklistItem(item.id)),
+      );
+      if (row.checklistItems.length > 0) {
+        await supabase.from("checklist").insert(
+          row.checklistItems.map((item) => ({
+            university_id: uni.id,
+            item,
+            completed: false,
+          })),
+        );
+      }
+
+      created++;
+    } catch (e: any) {
+      failures.push(`${row.name}: ${e.message}`);
+    }
+  }
+
+  return { created, failures };
+}
+
+/**
  * Duplicate a university into another cycle as a fully independent record.
  * Copies name, region, tuition, currency, dates, link, notes, and checklist
  * items (reset to incomplete). Status resets to "not-started" since a

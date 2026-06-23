@@ -13,6 +13,8 @@ import {
   createCycle as createCycleService,
   updateCycle as updateCycleService,
   archiveCycle as archiveCycleService,
+  unarchiveCycle as unarchiveCycleService,
+  deleteCycle as deleteCycleService,
   setActiveCycle as setActiveCycleService,
 } from "../../services/cycles";
 
@@ -27,13 +29,17 @@ interface CycleContextType {
   selectCycle: (id: string | null) => void;
   setActiveCycle: (id: string) => Promise<void>;
   createCycle: (
-    data: Omit<ApplicationCycle, "id" | "createdAt">,
+    data: Omit<ApplicationCycle, "id" | "createdAt" | "isArchived"> & {
+      isArchived?: boolean;
+    },
   ) => Promise<ApplicationCycle>;
   updateCycle: (
     id: string,
     data: Partial<Omit<ApplicationCycle, "id" | "createdAt">>,
   ) => Promise<void>;
   archiveCycle: (id: string) => Promise<void>;
+  unarchiveCycle: (id: string) => Promise<void>;
+  deleteCycle: (id: string) => Promise<void>;
   refresh: () => Promise<void>;
 }
 
@@ -102,7 +108,9 @@ export function CycleProvider({ children }: { children: ReactNode }) {
   };
 
   const createCycle = async (
-    data: Omit<ApplicationCycle, "id" | "createdAt">,
+    data: Omit<ApplicationCycle, "id" | "createdAt" | "isArchived"> & {
+      isArchived?: boolean;
+    },
   ) => {
     const created = await createCycleService(data);
     await refresh();
@@ -122,6 +130,17 @@ export function CycleProvider({ children }: { children: ReactNode }) {
     await refresh();
   };
 
+  const unarchiveCycle = async (id: string) => {
+    await unarchiveCycleService(id);
+    await refresh();
+  };
+
+  const deleteCycle = async (id: string) => {
+    await deleteCycleService(id);
+    if (selectedCycleId === id) setSelectedCycleId(null);
+    await refresh();
+  };
+
   return (
     <CycleContext.Provider
       value={{
@@ -135,6 +154,8 @@ export function CycleProvider({ children }: { children: ReactNode }) {
         createCycle,
         updateCycle,
         archiveCycle,
+        unarchiveCycle,
+        deleteCycle,
         refresh,
       }}
     >

@@ -12,6 +12,9 @@ import {
   TrendingUp,
   DollarSign,
   CalendarClock,
+  CalendarPlus,
+  Bell,
+  BellOff,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { toast } from "sonner";
@@ -37,6 +40,12 @@ import {
   getDeadlineUrgency,
   getDaysUntil,
 } from "../utils/statusConfig";
+import {
+  getNotificationPermission,
+  requestNotificationPermission,
+  notifyUpcomingDeadlines,
+} from "../utils/notifications";
+import { exportDeadlinesToIcs } from "../utils/icsExport";
 import { getUniversities } from "../../services/universities";
 import { getScholarships } from "../../services/scholarships";
 import { University, Scholarship, FX_TO_GHS } from "../types";
@@ -48,6 +57,9 @@ export function DashboardOverview() {
   const [scholarships, setScholarships] = useState<Scholarship[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notificationPermission, setNotificationPermission] = useState(
+    getNotificationPermission(),
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -227,37 +239,115 @@ export function DashboardOverview() {
     );
   }, [universities, scholarships]);
 
+  // Show a browser notification for newly-urgent deadlines, once per item
+  // per day, only if the person has already granted permission. This
+  // fires while the app is open; it is not background push (no service
+  // worker), so it only catches deadlines while the dashboard is loaded.
+  useEffect(() => {
+    if (loading || upcomingDeadlines.length === 0) return;
+    notifyUpcomingDeadlines(
+      upcomingDeadlines.map((d) => ({
+        id: d.id,
+        type: d.type,
+        name: d.name,
+        daysUntil: getDaysUntil(d.deadline) ?? 0,
+      })),
+    );
+  }, [loading, upcomingDeadlines]);
+
+  // Broader than upcomingDeadlines: every future deadline regardless of
+  // status (excluding fully resolved outcomes), since a calendar export is
+  // a forward-looking reference rather than an urgency list.
+  const allUpcomingDeadlines = useMemo(() => {
+    const RESOLVED_STATUSES = ["accepted", "rejected", "withdrawn", "awarded"];
+    const isFutureAndOpen = (
+      status: string,
+      deadline: string | null | undefined,
+    ) => {
+      if (RESOLVED_STATUSES.includes(status)) return false;
+      const days = getDaysUntil(deadline ?? null);
+      return days !== null && days >= 0;
+    };
+    const uniEvents = universities
+      .filter((u) => isFutureAndOpen(u.status, u.deadline))
+      .map((u) => ({
+        id: u.id,
+        type: "university" as const,
+        name: u.name,
+        deadline: u.deadline!,
+      }));
+    const scholEvents = scholarships
+      .filter((s) => isFutureAndOpen(s.status, s.deadline))
+      .map((s) => ({
+        id: s.id,
+        type: "scholarship" as const,
+        name: s.name,
+        deadline: s.deadline!,
+      }));
+    return [...uniEvents, ...scholEvents];
+  }, [universities, scholarships]);
+
   const openingSoon = useMemo(() => {
     const today = new Date();
-    return universities
-      .filter((u) => {
-        if (!u.startDate) return false;
-        const days = getDaysUntil(u.startDate);
-        return new Date(u.startDate) > today && days !== null && days <= 30;
-      })
+    const isOpeningSoon = (startDate: string | null | undefined) => {
+      if (!startDate) return false;
+      const days = getDaysUntil(startDate);
+      return new Date(startDate) > today && days !== null && days <= 30;
+    };
+    const uniItems = universities
+      .filter((u) => isOpeningSoon(u.startDate))
+      .map((u) => ({
+        id: u.id,
+        type: "university" as const,
+        name: u.name,
+        startDate: u.startDate!,
+      }));
+    const scholItems = scholarships
+      .filter((s) => isOpeningSoon(s.startDate))
+      .map((s) => ({
+        id: s.id,
+        type: "scholarship" as const,
+        name: s.name,
+        startDate: s.startDate!,
+      }));
+    return [...uniItems, ...scholItems]
       .sort(
         (a, b) =>
-          new Date(a.startDate ?? 0).getTime() -
-          new Date(b.startDate ?? 0).getTime(),
+          new Date(a.startDate).getTime() - new Date(b.startDate).getTime(),
       )
       .slice(0, 3);
-  }, [universities]);
+  }, [universities, scholarships]);
 
-  // ── Upcoming Applications : all not-yet-open universities, soonest first ──
+  // ── Upcoming Applications : all not-yet-open universities and
+  // scholarships, soonest opening date first ──────────────────────────────
   const upcomingApplications = useMemo(() => {
-    return universities
+    const uniItems = universities
       .filter((u) => u.status === "not-yet-open")
-      .sort((a, b) => {
-        // Universities with a known opening date come first, soonest first.
-        // Universities with no startDate yet are pushed to the end.
-        if (!a.startDate && !b.startDate) return a.name.localeCompare(b.name);
-        if (!a.startDate) return 1;
-        if (!b.startDate) return -1;
-        return (
-          new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
-        );
-      });
-  }, [universities]);
+      .map((u) => ({
+        id: u.id,
+        type: "university" as const,
+        name: u.name,
+        subtitle: u.region,
+        startDate: u.startDate ?? null,
+      }));
+    const scholItems = scholarships
+      .filter((s) => s.status === "not-yet-open")
+      .map((s) => ({
+        id: s.id,
+        type: "scholarship" as const,
+        name: s.name,
+        subtitle: s.coverage,
+        startDate: s.startDate ?? null,
+      }));
+    return [...uniItems, ...scholItems].sort((a, b) => {
+      // Items with a known opening date come first, soonest first.
+      // Items with no startDate yet are pushed to the end.
+      if (!a.startDate && !b.startDate) return a.name.localeCompare(b.name);
+      if (!a.startDate) return 1;
+      if (!b.startDate) return -1;
+      return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
+    });
+  }, [universities, scholarships]);
 
   const totalFundingGHS = useMemo(
     () =>
@@ -265,6 +355,17 @@ export function DashboardOverview() {
         (t, s) => t + (s.amount ?? 0) * (FX_TO_GHS[s.currency] ?? 1),
         0,
       ),
+    [scholarships],
+  );
+
+  const totalSecuredGHS = useMemo(
+    () =>
+      scholarships
+        .filter((s) => s.status === "awarded")
+        .reduce(
+          (t, s) => t + (s.amount ?? 0) * (FX_TO_GHS[s.currency] ?? 1),
+          0,
+        ),
     [scholarships],
   );
 
@@ -357,14 +458,67 @@ export function DashboardOverview() {
               </span>
             </p>
           </div>
-          <button
-            onClick={load}
-            aria-label="Refresh dashboard"
-            className="inline-flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground bg-secondary hover:bg-secondary/80 rounded-lg transition-colors"
-          >
-            <RefreshCw className="size-4" aria-hidden="true" />
-            <span>Refresh</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => exportDeadlinesToIcs(allUpcomingDeadlines)}
+              disabled={allUpcomingDeadlines.length === 0}
+              aria-label="Export upcoming deadlines to calendar"
+              title="Export upcoming deadlines as a calendar file (.ics)"
+              className="inline-flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground bg-secondary hover:bg-secondary/80 disabled:opacity-50 rounded-lg transition-colors"
+            >
+              <CalendarPlus className="size-4" aria-hidden="true" />
+              <span className="hidden sm:inline">Export Calendar</span>
+            </button>
+            {notificationPermission !== "unsupported" &&
+              notificationPermission !== "denied" && (
+                <button
+                  onClick={async () => {
+                    if (notificationPermission === "granted") return;
+                    const result = await requestNotificationPermission();
+                    setNotificationPermission(result);
+                    if (result === "granted") {
+                      toast.success("Deadline notifications enabled");
+                    } else if (result === "denied") {
+                      toast.error("Notifications were not enabled");
+                    }
+                  }}
+                  aria-label={
+                    notificationPermission === "granted"
+                      ? "Deadline notifications are enabled"
+                      : "Enable deadline notifications"
+                  }
+                  title={
+                    notificationPermission === "granted"
+                      ? "Deadline notifications are enabled"
+                      : "Enable deadline notifications"
+                  }
+                  className={`inline-flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors ${
+                    notificationPermission === "granted"
+                      ? "text-foreground bg-secondary cursor-default"
+                      : "text-muted-foreground hover:text-foreground bg-secondary hover:bg-secondary/80"
+                  }`}
+                >
+                  {notificationPermission === "granted" ? (
+                    <Bell className="size-4" aria-hidden="true" />
+                  ) : (
+                    <BellOff className="size-4" aria-hidden="true" />
+                  )}
+                  <span className="hidden sm:inline">
+                    {notificationPermission === "granted"
+                      ? "Notifications On"
+                      : "Enable Notifications"}
+                  </span>
+                </button>
+              )}
+            <button
+              onClick={load}
+              aria-label="Refresh dashboard"
+              className="inline-flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground bg-secondary hover:bg-secondary/80 rounded-lg transition-colors"
+            >
+              <RefreshCw className="size-4" aria-hidden="true" />
+              <span>Refresh</span>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -372,9 +526,9 @@ export function DashboardOverview() {
         {/* Alert strip */}
         {(openingSoon.length > 0 || upcomingDeadlines.length > 0) && (
           <div className="space-y-2">
-            {openingSoon.map((u) => (
+            {openingSoon.map((item) => (
               <div
-                key={u.id}
+                key={`${item.type}-${item.id}`}
                 className="flex items-center gap-3 bg-sky-500/10 border border-sky-500/20 rounded-lg px-4 py-3 text-sm"
               >
                 <AlertCircle
@@ -382,8 +536,8 @@ export function DashboardOverview() {
                   aria-hidden="true"
                 />
                 <span className="text-sky-700 dark:text-sky-300">
-                  📅 <strong>{u.name}</strong> opens in{" "}
-                  <strong>{getDaysUntil(u.startDate)} days</strong>
+                  📅 <strong>{item.name}</strong> opens in{" "}
+                  <strong>{getDaysUntil(item.startDate)} days</strong>
                 </span>
               </div>
             ))}
@@ -768,7 +922,7 @@ export function DashboardOverview() {
                   )}
                 </div>
 
-                {/* Upcoming Applications : universities not yet open */}
+                {/* Upcoming Applications : universities and scholarships not yet open */}
                 <div className="bg-card rounded-xl border card-resting p-5">
                   <h2 className="text-base font-semibold text-card-foreground mb-1 flex items-center gap-2">
                     <CalendarClock
@@ -779,7 +933,7 @@ export function DashboardOverview() {
                     Upcoming Applications
                   </h2>
                   <p className="text-xs text-muted-foreground mb-4">
-                    Universities not yet open for applications
+                    Universities and scholarships not yet open
                   </p>
                   {upcomingApplications.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
@@ -788,11 +942,11 @@ export function DashboardOverview() {
                     </p>
                   ) : (
                     <div className="space-y-2.5">
-                      {upcomingApplications.map((u) => {
-                        const days = getDaysUntil(u.startDate);
+                      {upcomingApplications.map((item) => {
+                        const days = getDaysUntil(item.startDate);
                         return (
                           <div
-                            key={u.id}
+                            key={`${item.type}-${item.id}`}
                             className="border-l-4 p-3 rounded-r-lg"
                             style={{
                               borderColor: statusStrong["not-yet-open"],
@@ -802,17 +956,17 @@ export function DashboardOverview() {
                           >
                             <div className="flex items-start justify-between gap-2">
                               <p className="text-sm font-medium text-foreground truncate">
-                                {u.name}
+                                {item.name}
                               </p>
                               <span className="text-xs text-muted-foreground shrink-0">
-                                {u.region}
+                                {item.subtitle}
                               </span>
                             </div>
                             <p className="text-xs text-muted-foreground mt-0.5 tabular-nums">
-                              {u.startDate
+                              {item.startDate
                                 ? days !== null && days >= 0
                                   ? `Opens in ${days} days : ${new Date(
-                                      u.startDate,
+                                      item.startDate,
                                     ).toLocaleDateString("en-US", {
                                       month: "short",
                                       day: "numeric",
@@ -845,7 +999,7 @@ export function DashboardOverview() {
                     Scholarship Summary
                   </h2>
                   <p className="text-xs text-muted-foreground mb-4">
-                    Funding potential and status
+                    Funding secured, potential, and status
                   </p>
                   <div className="space-y-2.5">
                     <div className="flex justify-between items-center">
@@ -885,6 +1039,20 @@ export function DashboardOverview() {
                       </span>
                     </div>
                     <div className="flex justify-between items-center pt-3 border-t border-border">
+                      <span className="text-sm font-medium text-foreground">
+                        Funding Secured
+                      </span>
+                      <span
+                        className="text-sm font-semibold tabular-nums"
+                        style={{ color: statusStrong["awarded"] }}
+                      >
+                        GHS{" "}
+                        {totalSecuredGHS.toLocaleString("en-US", {
+                          maximumFractionDigits: 0,
+                        })}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
                       <span className="text-sm font-medium text-foreground">
                         Total Potential Funding
                       </span>
