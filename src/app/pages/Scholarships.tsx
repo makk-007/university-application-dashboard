@@ -19,17 +19,15 @@ import {
   ArrowDown,
 } from "lucide-react";
 import { toast } from "sonner";
-import {
-  Scholarship,
-  ApplicationStatus,
-  University,
-  FX_TO_GHS,
-} from "../types";
+import { Scholarship, ApplicationStatus, University } from "../types";
 import { useCycle } from "../context/CycleContext";
+import { getExchangeRate, getAllCurrencyCodes } from "../utils/currencies";
 import { useUndoableDelete } from "../context/UndoableDeleteContext";
 import { useEscapeKey } from "../hooks/useEscapeKey";
+import { usePersistedFilterState } from "../hooks/usePersistedFilterState";
 import { ConfirmDeleteModal } from "../components/ConfirmDeleteModal";
 import { BulkDeleteConfirmModal } from "../components/BulkDeleteConfirmModal";
+import { StatusTransitionConfirmModal } from "../components/StatusTransitionConfirmModal";
 import { DuplicateToCycleModal } from "../components/DuplicateToCycleModal";
 import { StatusHistorySection } from "../components/StatusHistorySection";
 import { StatusBadge } from "../components/StatusBadge";
@@ -42,6 +40,7 @@ import {
   getDaysUntil,
   getDeadlineUrgency,
   isOverdue,
+  isHighStakesTransition,
 } from "../utils/statusConfig";
 import {
   getScholarships,
@@ -75,7 +74,6 @@ import {
   CartesianGrid,
 } from "recharts";
 
-const CURRENCIES = ["USD", "EUR", "GBP", "SEK", "GHS"];
 const COVERAGE_OPTIONS = [
   "Full Scholarship",
   "Tuition Only",
@@ -109,6 +107,9 @@ function AddScholarshipModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [fieldWarnings, setFieldWarnings] = useState<Record<string, string>>(
+    {},
+  );
   const set = (k: string, v: any) => {
     setForm((f) => ({ ...f, [k]: v }));
     setFieldErrors((fe) => {
@@ -116,6 +117,17 @@ function AddScholarshipModal({
       delete n[k];
       return n;
     });
+    if (k === "deadline") {
+      setFieldWarnings((fw) => {
+        const n = { ...fw };
+        if (v && v < new Date().toISOString().slice(0, 10)) {
+          n.deadline = "This date is in the past";
+        } else {
+          delete n.deadline;
+        }
+        return n;
+      });
+    }
   };
   const toggleUni = (id: string) =>
     setForm((f) => ({
@@ -244,7 +256,7 @@ function AddScholarshipModal({
                 onChange={(e) => set("currency", e.target.value)}
                 className={selectCls}
               >
-                {CURRENCIES.map((c) => (
+                {getAllCurrencyCodes().map((c) => (
                   <option key={c}>{c}</option>
                 ))}
               </select>
@@ -307,6 +319,11 @@ function AddScholarshipModal({
           {fieldErrors.deadline && (
             <p className="text-xs text-destructive -mt-2">
               {fieldErrors.deadline}
+            </p>
+          )}
+          {!fieldErrors.deadline && fieldWarnings.deadline && (
+            <p className="text-xs text-amber-600 dark:text-amber-400 -mt-2">
+              {fieldWarnings.deadline}
             </p>
           )}
           {universities.length > 0 && (
@@ -410,7 +427,12 @@ function ScholarshipDetailDrawer({
   const [savingField, setSavingField] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
-  useEscapeKey(onClose, !showDeleteModal && !showDuplicateModal);
+  const [pendingStatusChange, setPendingStatusChange] =
+    useState<ApplicationStatus | null>(null);
+  useEscapeKey(
+    onClose,
+    !showDeleteModal && !showDuplicateModal && !pendingStatusChange,
+  );
   const [notes, setNotes] = useState(scholarship.notes ?? "");
   const [newCheckItem, setNewCheckItem] = useState("");
   const [notesTimer, setNotesTimer] = useState<ReturnType<
@@ -465,7 +487,7 @@ function ScholarshipDetailDrawer({
   const completed = s.checklist.filter((c) => c.completed).length;
   const total = s.checklist.length;
   const progress = total > 0 ? (completed / total) * 100 : 0;
-  const handleStatusChange = async (status: ApplicationStatus) => {
+  const applyStatusChange = async (status: ApplicationStatus) => {
     setSavingStatus(true);
     const previousStatus = s.status;
     try {
@@ -482,6 +504,14 @@ function ScholarshipDetailDrawer({
     } finally {
       setSavingStatus(false);
     }
+  };
+
+  const handleStatusChange = (status: ApplicationStatus) => {
+    if (isHighStakesTransition(s.status, status)) {
+      setPendingStatusChange(status);
+      return;
+    }
+    applyStatusChange(status);
   };
   const handleNotesChange = (val: string) => {
     setNotes(val);
@@ -588,7 +618,7 @@ function ScholarshipDetailDrawer({
     onDuplicated(duplicate);
   };
 
-  const amountGHS = (Number(editAmount) || 0) * (FX_TO_GHS[editCurrency] ?? 1);
+  const amountGHS = (Number(editAmount) || 0) * getExchangeRate(editCurrency);
   const daysUntilDeadline = getDaysUntil((editDeadline || s.deadline) ?? null);
   const daysUntilOpen = getDaysUntil((editStartDate || s.startDate) ?? null);
 
@@ -689,7 +719,7 @@ function ScholarshipDetailDrawer({
                   }}
                   className={`${selectCls} w-24 shrink-0`}
                 >
-                  {CURRENCIES.map((c) => (
+                  {getAllCurrencyCodes().map((c) => (
                     <option key={c}>{c}</option>
                   ))}
                 </select>
@@ -766,6 +796,13 @@ function ScholarshipDetailDrawer({
                   {daysUntilDeadline} days left
                 </p>
               )}
+              {editDeadline &&
+                editDeadline !== (s.deadline ?? "") &&
+                editDeadline < new Date().toISOString().slice(0, 10) && (
+                  <p className="text-xs mt-1 text-amber-600 dark:text-amber-400">
+                    This date is in the past
+                  </p>
+                )}
             </div>
           </div>
 
@@ -979,6 +1016,19 @@ function ScholarshipDetailDrawer({
           onConfirm={handleDuplicate}
         />
       )}
+
+      {pendingStatusChange && (
+        <StatusTransitionConfirmModal
+          itemName={s.name}
+          fromLabel={statusConfig[s.status].label}
+          toLabel={statusConfig[pendingStatusChange].label}
+          onConfirm={() => {
+            applyStatusChange(pendingStatusChange);
+            setPendingStatusChange(null);
+          }}
+          onCancel={() => setPendingStatusChange(null)}
+        />
+      )}
     </>
   );
 }
@@ -997,20 +1047,24 @@ export function Scholarships() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<ApplicationStatus | "all">(
-    "all",
-  );
-  const [coverageFilter, setCoverageFilter] = useState<
+  const [statusFilter, setStatusFilter] = usePersistedFilterState<
+    ApplicationStatus | "all"
+  >("scholarships-status", "all");
+  const [coverageFilter, setCoverageFilter] = usePersistedFilterState<
     (typeof COVERAGE_OPTIONS)[number] | "all"
-  >("all");
+  >("scholarships-coverage", "all");
+  const [universityFilter, setUniversityFilter] = useState<string>("all");
   const [showAddModal, setShowAddModal] = useState(false);
   const [selected, setSelected] = useState<Scholarship | null>(null);
   const [pendingOpenId, setPendingOpenId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"list" | "funding">("list");
-  const [sortKey, setSortKey] = useState<
+  const [sortKey, setSortKey] = usePersistedFilterState<
     "name" | "amount" | "deadline" | "coverage"
-  >("name");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  >("scholarships-sort-key", "name");
+  const [sortDir, setSortDir] = usePersistedFilterState<"asc" | "desc">(
+    "scholarships-sort-dir",
+    "asc",
+  );
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkDuplicate, setShowBulkDuplicate] = useState(false);
@@ -1085,9 +1139,12 @@ export function Scholarships() {
         const matchStatus = statusFilter === "all" || s.status === statusFilter;
         const matchCoverage =
           coverageFilter === "all" || s.coverage === coverageFilter;
-        return matchSearch && matchStatus && matchCoverage;
+        const matchUniversity =
+          universityFilter === "all" ||
+          s.eligibleUniversities.includes(universityFilter);
+        return matchSearch && matchStatus && matchCoverage && matchUniversity;
       }),
-    [scholarships, searchQuery, statusFilter, coverageFilter],
+    [scholarships, searchQuery, statusFilter, coverageFilter, universityFilter],
   );
 
   const sorted = useMemo(() => {
@@ -1150,7 +1207,13 @@ export function Scholarships() {
   useEffect(() => {
     setPage(1);
     setSelectedIds(new Set());
-  }, [searchQuery, statusFilter, coverageFilter, selectedCycleId]);
+  }, [
+    searchQuery,
+    statusFilter,
+    coverageFilter,
+    universityFilter,
+    selectedCycleId,
+  ]);
 
   const fundingData = useMemo(
     () =>
@@ -1161,8 +1224,7 @@ export function Scholarships() {
             scholarships
               .filter((s) => s.eligibleUniversities.includes(u.id))
               .reduce(
-                (sum, s) =>
-                  sum + (s.amount ?? 0) * (FX_TO_GHS[s.currency] ?? 1),
+                (sum, s) => sum + (s.amount ?? 0) * getExchangeRate(s.currency),
                 0,
               ),
           ),
@@ -1174,7 +1236,7 @@ export function Scholarships() {
   const totalPotential = useMemo(
     () =>
       scholarships.reduce(
-        (t, s) => t + (s.amount ?? 0) * (FX_TO_GHS[s.currency] ?? 1),
+        (t, s) => t + (s.amount ?? 0) * getExchangeRate(s.currency),
         0,
       ),
     [scholarships],
@@ -1217,7 +1279,7 @@ export function Scholarships() {
         const segments: Record<string, number> = {};
         linked.forEach((s) => {
           segments[s.id] = Math.round(
-            (s.amount ?? 0) * (FX_TO_GHS[s.currency] ?? 1),
+            (s.amount ?? 0) * getExchangeRate(s.currency),
           );
         });
         const total = linked.reduce((sum, s) => sum + (segments[s.id] ?? 0), 0);
@@ -1581,6 +1643,24 @@ export function Scholarships() {
                     ))}
                   </select>
                 </div>
+                {universities.length > 0 && (
+                  <div>
+                    <select
+                      value={universityFilter}
+                      onChange={(e) => setUniversityFilter(e.target.value)}
+                      className={`${selectCls} w-auto pr-8`}
+                    >
+                      <option value="all">All Universities</option>
+                      {[...universities]
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                        .map((u) => (
+                          <option key={u.id} value={u.id}>
+                            {u.name}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                )}
                 <div className="flex items-center gap-2">
                   <ArrowUpDown className="size-4 text-muted-foreground" />
                   <select
