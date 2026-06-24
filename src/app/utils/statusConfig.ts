@@ -168,3 +168,19 @@ export const isOverdue = (
   const days = getDaysUntil(deadline);
   return days !== null && days < 0;
 };
+
+/** Statuses representing a finalized, hard-won outcome worth protecting. */
+const HIGH_STAKES_STATUSES: ApplicationStatus[] = ["accepted", "awarded"];
+
+/**
+ * Whether moving away from `fromStatus` should prompt for confirmation.
+ * Only guards leaving a hard-won outcome (Accepted, Awarded) for something
+ * else; every other transition (e.g. Not Started to In Progress) proceeds
+ * immediately with no extra step, since there is nothing to protect there.
+ */
+export const isHighStakesTransition = (
+  fromStatus: ApplicationStatus,
+  toStatus: ApplicationStatus,
+): boolean => {
+  return fromStatus !== toStatus && HIGH_STAKES_STATUSES.includes(fromStatus);
+};

@@ -20,10 +20,13 @@ import {
 import { toast } from "sonner";
 import { University, ApplicationStatus } from "../types";
 import { useCycle } from "../context/CycleContext";
+import { getAllCurrencyCodes } from "../utils/currencies";
 import { useUndoableDelete } from "../context/UndoableDeleteContext";
 import { useEscapeKey } from "../hooks/useEscapeKey";
+import { usePersistedFilterState } from "../hooks/usePersistedFilterState";
 import { ConfirmDeleteModal } from "../components/ConfirmDeleteModal";
 import { BulkDeleteConfirmModal } from "../components/BulkDeleteConfirmModal";
+import { StatusTransitionConfirmModal } from "../components/StatusTransitionConfirmModal";
 import { DuplicateToCycleModal } from "../components/DuplicateToCycleModal";
 import { StatusHistorySection } from "../components/StatusHistorySection";
 import { StatusBadge } from "../components/StatusBadge";
@@ -36,6 +39,7 @@ import {
   getDaysUntil,
   getDeadlineUrgency,
   isOverdue,
+  isHighStakesTransition,
 } from "../utils/statusConfig";
 import { OverdueBadge } from "../components/OverdueBadge";
 import {
@@ -68,7 +72,6 @@ const REGIONS = [
   "South America",
   "Middle East",
 ];
-const CURRENCIES = ["USD", "EUR", "GBP", "SEK", "GHS"];
 
 function AddUniversityModal({
   activeCycleId,
@@ -93,6 +96,9 @@ function AddUniversityModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [fieldWarnings, setFieldWarnings] = useState<Record<string, string>>(
+    {},
+  );
   const set = (k: string, v: any) => {
     setForm((f) => ({ ...f, [k]: v }));
     setFieldErrors((fe) => {
@@ -100,6 +106,17 @@ function AddUniversityModal({
       delete n[k];
       return n;
     });
+    if (k === "deadline") {
+      setFieldWarnings((fw) => {
+        const n = { ...fw };
+        if (v && v < new Date().toISOString().slice(0, 10)) {
+          n.deadline = "This date is in the past";
+        } else {
+          delete n.deadline;
+        }
+        return n;
+      });
+    }
   };
 
   const validate = () => {
@@ -252,7 +269,7 @@ function AddUniversityModal({
                 onChange={(e) => set("currency", e.target.value)}
                 className={selectCls}
               >
-                {CURRENCIES.map((c) => (
+                {getAllCurrencyCodes().map((c) => (
                   <option key={c}>{c}</option>
                 ))}
               </select>
@@ -285,6 +302,11 @@ function AddUniversityModal({
           {fieldErrors.deadline && (
             <p className="text-xs text-destructive -mt-2">
               {fieldErrors.deadline}
+            </p>
+          )}
+          {!fieldErrors.deadline && fieldWarnings.deadline && (
+            <p className="text-xs text-amber-600 dark:text-amber-400 -mt-2">
+              {fieldWarnings.deadline}
             </p>
           )}
           <div>
@@ -361,7 +383,12 @@ function UniversityDetailDrawer({
   const [savingField, setSavingField] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
-  useEscapeKey(onClose, !showDeleteModal && !showDuplicateModal);
+  const [pendingStatusChange, setPendingStatusChange] =
+    useState<ApplicationStatus | null>(null);
+  useEscapeKey(
+    onClose,
+    !showDeleteModal && !showDuplicateModal && !pendingStatusChange,
+  );
   const [notes, setNotes] = useState(university.notes ?? "");
   const [newCheckItem, setNewCheckItem] = useState("");
   const [notesTimer, setNotesTimer] = useState<ReturnType<
@@ -411,7 +438,7 @@ function UniversityDetailDrawer({
   const total = uni.checklist.length;
   const progress = total > 0 ? (completed / total) * 100 : 0;
 
-  const handleStatusChange = async (status: ApplicationStatus) => {
+  const applyStatusChange = async (status: ApplicationStatus) => {
     setSavingStatus(true);
     const previousStatus = uni.status;
     try {
@@ -428,6 +455,14 @@ function UniversityDetailDrawer({
     } finally {
       setSavingStatus(false);
     }
+  };
+
+  const handleStatusChange = (status: ApplicationStatus) => {
+    if (isHighStakesTransition(uni.status, status)) {
+      setPendingStatusChange(status);
+      return;
+    }
+    applyStatusChange(status);
   };
 
   const handleNotesChange = (val: string) => {
@@ -618,7 +653,7 @@ function UniversityDetailDrawer({
                   }}
                   className={`${selectCls} w-24 shrink-0`}
                 >
-                  {CURRENCIES.map((c) => (
+                  {getAllCurrencyCodes().map((c) => (
                     <option key={c}>{c}</option>
                   ))}
                 </select>
@@ -691,6 +726,13 @@ function UniversityDetailDrawer({
                   {daysUntilDeadline} days left
                 </p>
               )}
+              {editDeadline &&
+                editDeadline !== (uni.deadline ?? "") &&
+                editDeadline < new Date().toISOString().slice(0, 10) && (
+                  <p className="text-xs mt-1 text-amber-600 dark:text-amber-400">
+                    This date is in the past
+                  </p>
+                )}
             </div>
           </div>
 
@@ -883,6 +925,19 @@ function UniversityDetailDrawer({
           onConfirm={handleDuplicate}
         />
       )}
+
+      {pendingStatusChange && (
+        <StatusTransitionConfirmModal
+          itemName={uni.name}
+          fromLabel={statusConfig[uni.status].label}
+          toLabel={statusConfig[pendingStatusChange].label}
+          onConfirm={() => {
+            applyStatusChange(pendingStatusChange);
+            setPendingStatusChange(null);
+          }}
+          onCancel={() => setPendingStatusChange(null)}
+        />
+      )}
     </>
   );
 }
@@ -900,17 +955,23 @@ export function Universities() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<ApplicationStatus | "all">(
+  const [statusFilter, setStatusFilter] = usePersistedFilterState<
+    ApplicationStatus | "all"
+  >("universities-status", "all");
+  const [regionFilter, setRegionFilter] = usePersistedFilterState<string>(
+    "universities-region",
     "all",
   );
-  const [regionFilter, setRegionFilter] = useState<string>("all");
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedUni, setSelectedUni] = useState<University | null>(null);
   const [pendingOpenId, setPendingOpenId] = useState<string | null>(null);
-  const [sortKey, setSortKey] = useState<
+  const [sortKey, setSortKey] = usePersistedFilterState<
     "name" | "region" | "deadline" | "progress"
-  >("name");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  >("universities-sort-key", "name");
+  const [sortDir, setSortDir] = usePersistedFilterState<"asc" | "desc">(
+    "universities-sort-dir",
+    "asc",
+  );
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkDuplicate, setShowBulkDuplicate] = useState(false);

@@ -46,9 +46,10 @@ import {
   notifyUpcomingDeadlines,
 } from "../utils/notifications";
 import { exportDeadlinesToIcs } from "../utils/icsExport";
+import { getExchangeRate } from "../utils/currencies";
 import { getUniversities } from "../../services/universities";
 import { getScholarships } from "../../services/scholarships";
-import { University, Scholarship, FX_TO_GHS } from "../types";
+import { University, Scholarship } from "../types";
 import { useCycle } from "../context/CycleContext";
 
 export function DashboardOverview() {
@@ -352,7 +353,7 @@ export function DashboardOverview() {
   const totalFundingGHS = useMemo(
     () =>
       scholarships.reduce(
-        (t, s) => t + (s.amount ?? 0) * (FX_TO_GHS[s.currency] ?? 1),
+        (t, s) => t + (s.amount ?? 0) * getExchangeRate(s.currency),
         0,
       ),
     [scholarships],
@@ -362,10 +363,7 @@ export function DashboardOverview() {
     () =>
       scholarships
         .filter((s) => s.status === "awarded")
-        .reduce(
-          (t, s) => t + (s.amount ?? 0) * (FX_TO_GHS[s.currency] ?? 1),
-          0,
-        ),
+        .reduce((t, s) => t + (s.amount ?? 0) * getExchangeRate(s.currency), 0),
     [scholarships],
   );
 

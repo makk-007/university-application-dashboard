@@ -10,12 +10,21 @@ import {
   Sun,
   Mail,
   TrendingUp,
+  Plus,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "../lib/supabase";
 import { FX_TO_GHS } from "../types";
 import { CycleManagementCard } from "../components/CycleManagementCard";
 import { DataManagementCard } from "../components/DataManagementCard";
+import {
+  getCustomCurrencies,
+  addCustomCurrency,
+  removeCustomCurrency,
+  isDefaultCurrency,
+} from "../utils/currencies";
+import { inputCls } from "../components/ui/input-classes";
 
 const readonlyCls =
   "flex h-9 w-full rounded-md border border-border bg-muted/50 px-3 py-1 text-sm text-muted-foreground cursor-not-allowed";
@@ -24,6 +33,46 @@ export function Settings() {
   const { user, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [sendingReset, setSendingReset] = useState(false);
+  const [customCurrencies, setCustomCurrencies] = useState(
+    getCustomCurrencies(),
+  );
+  const [newCurrencyCode, setNewCurrencyCode] = useState("");
+  const [newCurrencyRate, setNewCurrencyRate] = useState("");
+  const [currencyError, setCurrencyError] = useState<string | null>(null);
+
+  const handleAddCurrency = () => {
+    const code = newCurrencyCode.trim().toUpperCase();
+    const rate = Number(newCurrencyRate);
+
+    if (!code || code.length < 2) {
+      setCurrencyError("Enter a currency code, e.g. NGN");
+      return;
+    }
+    if (
+      isDefaultCurrency(code) ||
+      customCurrencies.some((c) => c.code === code)
+    ) {
+      setCurrencyError(`${code} already exists`);
+      return;
+    }
+    if (!newCurrencyRate || Number.isNaN(rate) || rate <= 0) {
+      setCurrencyError("Enter a positive exchange rate to GHS");
+      return;
+    }
+
+    const updated = addCustomCurrency(code, rate);
+    setCustomCurrencies(updated);
+    setNewCurrencyCode("");
+    setNewCurrencyRate("");
+    setCurrencyError(null);
+    toast.success(`${code} added`);
+  };
+
+  const handleRemoveCurrency = (code: string) => {
+    const updated = removeCustomCurrency(code);
+    setCustomCurrencies(updated);
+    toast.success(`${code} removed`);
+  };
 
   const handlePasswordReset = async () => {
     if (!user?.email) return;
@@ -186,9 +235,10 @@ export function Settings() {
           </div>
           <div className="px-6 py-5 space-y-3">
             <p className="text-xs text-muted-foreground">
-              GHS conversion rates used across the app. These are approximate
-              mid-market rates and may differ from actual bank or transfer
-              rates.
+              GHS conversion rates used across the app. Built-in rates are
+              approximate mid-market rates and may differ from actual bank or
+              transfer rates. Add your own currency below if you need one that
+              isn't listed.
             </p>
             <div className="rounded-lg border border-border overflow-hidden">
               <table className="w-full text-sm">
@@ -200,6 +250,7 @@ export function Settings() {
                     <th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       1 unit in GHS
                     </th>
+                    <th className="w-10 px-2 py-2" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -213,15 +264,80 @@ export function Settings() {
                         <td className="px-4 py-2.5 text-right text-muted-foreground tabular-nums">
                           GHS {rate.toFixed(2)}
                         </td>
+                        <td className="px-2 py-2.5" />
                       </tr>
                     ))}
+                  {customCurrencies.map((c) => (
+                    <tr key={c.code} className="bg-card">
+                      <td className="px-4 py-2.5 font-medium text-foreground">
+                        {c.code}
+                      </td>
+                      <td className="px-4 py-2.5 text-right text-muted-foreground tabular-nums">
+                        GHS {c.rateToGhs.toFixed(2)}
+                      </td>
+                      <td className="px-2 py-2.5 text-right">
+                        <button
+                          onClick={() => handleRemoveCurrency(c.code)}
+                          aria-label={`Remove ${c.code}`}
+                          className="text-muted-foreground hover:text-destructive transition-colors"
+                        >
+                          <X className="size-3.5" aria-hidden="true" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
             <p className="text-[11px] text-muted-foreground/60">
-              Last updated: June 2026. Rates are hardcoded and do not update
-              automatically.
+              Last updated: June 2026. Built-in rates are fixed and do not
+              update automatically.
             </p>
+
+            <div className="pt-3 border-t border-border">
+              <p className="text-sm font-medium text-foreground mb-2">
+                Add a Currency
+              </p>
+              <div className="flex flex-wrap gap-2 items-start">
+                <input
+                  value={newCurrencyCode}
+                  onChange={(e) => {
+                    setNewCurrencyCode(e.target.value.toUpperCase());
+                    setCurrencyError(null);
+                  }}
+                  placeholder="Code (e.g. NGN)"
+                  maxLength={6}
+                  className={`${inputCls} w-32`}
+                />
+                <input
+                  type="number"
+                  step="0.0001"
+                  min="0"
+                  value={newCurrencyRate}
+                  onChange={(e) => {
+                    setNewCurrencyRate(e.target.value);
+                    setCurrencyError(null);
+                  }}
+                  placeholder="Rate to GHS"
+                  className={`${inputCls} w-32`}
+                />
+                <button
+                  onClick={handleAddCurrency}
+                  className="inline-flex items-center gap-1.5 px-3 h-9 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 transition-colors"
+                >
+                  <Plus className="size-4" aria-hidden="true" />
+                  Add
+                </button>
+              </div>
+              {currencyError && (
+                <p className="text-xs text-destructive mt-1.5">
+                  {currencyError}
+                </p>
+              )}
+              <p className="text-[11px] text-muted-foreground/60 mt-1.5">
+                Custom currencies are saved on this device only.
+              </p>
+            </div>
           </div>
         </div>
 
