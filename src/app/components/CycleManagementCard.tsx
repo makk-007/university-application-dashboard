@@ -17,7 +17,11 @@ import {
 import { toast } from "sonner";
 import { useCycle } from "../context/CycleContext";
 import { ApplicationCycle } from "../types";
-import { getCycleRecordCounts } from "../../services/cycles";
+import {
+  getCycleRecordCounts,
+  getCycleCloseOutSummary,
+  CycleCloseOutSummary,
+} from "../../services/cycles";
 import { useEscapeKey } from "../hooks/useEscapeKey";
 import { DuplicateCycleModal } from "./DuplicateCycleModal";
 import { inputCls, textareaCls } from "./ui/input-classes";
@@ -376,7 +380,153 @@ function DeleteCycleModal({
   );
 }
 
+function CloseOutSummaryModal({
+  cycle,
+  onArchive,
+  onClose,
+}: {
+  cycle: ApplicationCycle;
+  onArchive: () => void;
+  onClose: () => void;
+}) {
+  const [loading, setLoading] = useState(true);
+  const [summary, setSummary] = useState<CycleCloseOutSummary | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEscapeKey(onClose, true);
+
+  useEffect(() => {
+    let cancelled = false;
+    getCycleCloseOutSummary(cycle.id)
+      .then((s) => !cancelled && setSummary(s))
+      .catch((e) => !cancelled && setError(e.message))
+      .finally(() => !cancelled && setLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [cycle.id]);
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 8 }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
+        className="bg-card rounded-xl border card-raised w-full sm:max-w-md sm:max-h-[85vh] h-full sm:h-auto overflow-y-auto"
+      >
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <h2 className="text-lg font-semibold text-card-foreground">
+            {cycle.name}: End of Cycle Summary
+          </h2>
+          <button
+            onClick={onClose}
+            aria-label="Close dialog"
+            className="text-muted-foreground hover:text-foreground p-1 rounded-md hover:bg-accent transition-colors"
+          >
+            <X className="size-4" aria-hidden="true" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <p className="text-sm text-muted-foreground">
+            This cycle's end date ({cycle.endDate}) has passed. Here is how it
+            turned out.
+          </p>
+
+          {loading ? (
+            <div className="space-y-2">
+              {[0, 1].map((i) => (
+                <div
+                  key={i}
+                  className="h-12 rounded-lg bg-muted/50 animate-pulse"
+                />
+              ))}
+            </div>
+          ) : error ? (
+            <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2">
+              <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
+              {error}
+            </div>
+          ) : summary ? (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-lg border border-border p-3">
+                <p className="text-xs text-muted-foreground mb-1">
+                  Universities
+                </p>
+                <p className="text-lg font-semibold text-foreground tabular-nums">
+                  {summary.totalUniversities}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {summary.acceptedCount} accepted, {summary.rejectedCount}{" "}
+                  rejected, {summary.pendingCount} pending
+                </p>
+              </div>
+              <div className="rounded-lg border border-border p-3">
+                <p className="text-xs text-muted-foreground mb-1">
+                  Scholarships
+                </p>
+                <p className="text-lg font-semibold text-foreground tabular-nums">
+                  {summary.totalScholarships}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {summary.awardedCount} awarded
+                </p>
+              </div>
+              <div className="col-span-2 rounded-lg border border-border p-3">
+                <p className="text-xs text-muted-foreground mb-1">
+                  Funding Secured
+                </p>
+                <p
+                  className="text-lg font-semibold tabular-nums"
+                  style={{ color: "var(--status-awarded-strong)" }}
+                >
+                  GHS{" "}
+                  {summary.fundingSecuredGHS.toLocaleString("en-US", {
+                    maximumFractionDigits: 0,
+                  })}
+                </p>
+              </div>
+            </div>
+          ) : null}
+
+          <p className="text-xs text-muted-foreground">
+            Archiving keeps every record exactly as is and tucks the cycle away
+            from the main list. Nothing is deleted, and it can be restored any
+            time from the archived section below.
+          </p>
+
+          <div className="flex gap-3 pt-1">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 h-9 border border-border rounded-md text-sm font-medium text-foreground hover:bg-accent transition-colors"
+            >
+              Not Yet
+            </button>
+            <button
+              type="button"
+              onClick={onArchive}
+              className="flex-1 h-9 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors inline-flex items-center justify-center gap-2"
+            >
+              <Archive className="size-4" aria-hidden="true" />
+              Archive Cycle
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 // ── Main Card ────────────────────────────────────────────────────────────────
+
+function isPastEndDate(cycle: ApplicationCycle): boolean {
+  if (cycle.isArchived || !cycle.endDate) return false;
+  return new Date(cycle.endDate) < new Date();
+}
 
 export function CycleManagementCard() {
   const {
@@ -399,6 +549,9 @@ export function CycleManagementCard() {
   const [settingActiveId, setSettingActiveId] = useState<string | null>(null);
   const [duplicatingCycle, setDuplicatingCycle] =
     useState<ApplicationCycle | null>(null);
+  const [reviewingCycle, setReviewingCycle] = useState<ApplicationCycle | null>(
+    null,
+  );
   const [showArchived, setShowArchived] = useState(false);
 
   const visibleCycles = cycles.filter((c) => !c.isArchived);
@@ -437,6 +590,17 @@ export function CycleManagementCard() {
       toast.error("Failed to archive cycle", { description: e.message });
     } finally {
       setArchiveSaving(false);
+    }
+  };
+
+  const handleArchiveFromReview = async () => {
+    if (!reviewingCycle) return;
+    try {
+      await archiveCycle(reviewingCycle.id);
+      toast.success("Cycle archived", { description: reviewingCycle.name });
+      setReviewingCycle(null);
+    } catch (e: any) {
+      toast.error("Failed to archive cycle", { description: e.message });
     }
   };
 
@@ -554,6 +718,15 @@ export function CycleManagementCard() {
                             Active
                           </span>
                         )}
+                        {isPastEndDate(cycle) && (
+                          <span className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium whitespace-nowrap bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                            <CalendarRange
+                              className="size-3"
+                              aria-hidden="true"
+                            />
+                            Ended
+                          </span>
+                        )}
                       </div>
                       {(cycle.startDate || cycle.endDate) && (
                         <p className="text-xs text-muted-foreground mt-0.5">
@@ -568,6 +741,14 @@ export function CycleManagementCard() {
                       )}
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
+                      {isPastEndDate(cycle) && (
+                        <button
+                          onClick={() => setReviewingCycle(cycle)}
+                          className="px-2.5 h-8 text-xs font-medium border border-amber-500/30 text-amber-600 dark:text-amber-400 rounded-md hover:bg-amber-500/10 transition-colors"
+                        >
+                          Review
+                        </button>
+                      )}
                       {!cycle.isActive && (
                         <button
                           onClick={() => handleSetActive(cycle)}
@@ -720,6 +901,14 @@ export function CycleManagementCard() {
           cycle={deletingCycle}
           onConfirm={handleDelete}
           onCancel={() => setDeletingCycle(null)}
+        />
+      )}
+
+      {reviewingCycle && (
+        <CloseOutSummaryModal
+          cycle={reviewingCycle}
+          onArchive={handleArchiveFromReview}
+          onClose={() => setReviewingCycle(null)}
         />
       )}
     </div>

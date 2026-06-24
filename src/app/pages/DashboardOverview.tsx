@@ -49,6 +49,10 @@ import { exportDeadlinesToIcs } from "../utils/icsExport";
 import { getExchangeRate } from "../utils/currencies";
 import { getUniversities } from "../../services/universities";
 import { getScholarships } from "../../services/scholarships";
+import {
+  getRecentActivity,
+  ActivityFeedEntry,
+} from "../../services/statusHistory";
 import { University, Scholarship } from "../types";
 import { useCycle } from "../context/CycleContext";
 
@@ -61,6 +65,19 @@ export function DashboardOverview() {
   const [notificationPermission, setNotificationPermission] = useState(
     getNotificationPermission(),
   );
+  const [activity, setActivity] = useState<ActivityFeedEntry[]>([]);
+  const [activityLoading, setActivityLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    getRecentActivity(15)
+      .then((entries) => !cancelled && setActivity(entries))
+      .catch(() => !cancelled && setActivity([]))
+      .finally(() => !cancelled && setActivityLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -124,6 +141,22 @@ export function DashboardOverview() {
               u.status !== "withdrawn",
           ).length,
           scholarshipCount: cycleSchols.length,
+          scholarshipAwarded: cycleSchols.filter((s) => s.status === "awarded")
+            .length,
+          scholarshipRejected: cycleSchols.filter(
+            (s) => s.status === "rejected",
+          ).length,
+          scholarshipPending: cycleSchols.filter(
+            (s) =>
+              s.status !== "awarded" &&
+              s.status !== "rejected" &&
+              s.status !== "waitlisted" &&
+              s.status !== "withdrawn",
+          ).length,
+          scholarshipFundingGHS: cycleSchols.reduce(
+            (sum, s) => sum + (s.amount ?? 0) * getExchangeRate(s.currency),
+            0,
+          ),
         };
       })
       .filter((row) => row.total > 0 || row.scholarshipCount > 0);
@@ -671,6 +704,90 @@ export function DashboardOverview() {
               </div>
             )}
 
+            {/* Per-cycle scholarship breakdown, All Cycles view only */}
+            {cycleBreakdown.length > 1 && (
+              <div className="bg-card rounded-xl border card-resting overflow-hidden mb-4 sm:mb-6">
+                <div className="px-6 py-4 border-b border-border">
+                  <h2 className="text-base font-semibold text-card-foreground">
+                    Scholarships by Cycle
+                  </h2>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border text-muted-foreground text-xs uppercase tracking-wide">
+                        <th className="text-left px-6 py-2.5 font-medium">
+                          Cycle
+                        </th>
+                        <th className="text-right px-4 py-2.5 font-medium">
+                          Scholarships
+                        </th>
+                        <th className="text-right px-4 py-2.5 font-medium">
+                          Pending
+                        </th>
+                        <th className="text-right px-4 py-2.5 font-medium">
+                          Awarded
+                        </th>
+                        <th className="text-right px-4 py-2.5 font-medium">
+                          Rejected
+                        </th>
+                        <th className="text-right px-6 py-2.5 font-medium">
+                          Total Funding (GHS)
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {cycleBreakdown
+                        .filter((row) => row.scholarshipCount > 0)
+                        .map((row) => (
+                          <tr
+                            key={row.cycle.id}
+                            className="border-b border-border last:border-0"
+                          >
+                            <td className="px-6 py-3 font-medium text-foreground">
+                              <span className="inline-flex items-center gap-2">
+                                {row.cycle.name}
+                                {row.cycle.isActive && (
+                                  <span
+                                    className="text-[10px] uppercase tracking-wide font-semibold"
+                                    style={{
+                                      color: "var(--status-accepted-strong)",
+                                    }}
+                                  >
+                                    Active
+                                  </span>
+                                )}
+                              </span>
+                            </td>
+                            <td className="text-right px-4 py-3 text-foreground tabular-nums">
+                              {row.scholarshipCount}
+                            </td>
+                            <td className="text-right px-4 py-3 text-muted-foreground tabular-nums">
+                              {row.scholarshipPending}
+                            </td>
+                            <td
+                              className="text-right px-4 py-3 tabular-nums"
+                              style={{ color: "var(--status-awarded-strong)" }}
+                            >
+                              {row.scholarshipAwarded}
+                            </td>
+                            <td className="text-right px-4 py-3 text-destructive tabular-nums">
+                              {row.scholarshipRejected}
+                            </td>
+                            <td className="text-right px-6 py-3 text-foreground tabular-nums">
+                              {row.scholarshipFundingGHS.toLocaleString(
+                                "en-US",
+                                { maximumFractionDigits: 0 },
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
             {/* KPI Cards */}
             <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-4">
               <KPICard
@@ -1065,6 +1182,74 @@ export function DashboardOverview() {
                       * GHS amounts are approximate. Exchange rates may vary.
                     </p>
                   </div>
+                </div>
+
+                {/* Activity Feed : recent status changes across everything */}
+                <div className="bg-card rounded-xl border card-resting p-5">
+                  <h2 className="text-base font-semibold text-card-foreground mb-1 flex items-center gap-2">
+                    <Clock
+                      className="size-4 text-muted-foreground"
+                      aria-hidden="true"
+                    />
+                    Recent Activity
+                  </h2>
+                  <p className="text-xs text-muted-foreground mb-4">
+                    Latest status changes
+                  </p>
+                  {activityLoading ? (
+                    <div className="space-y-2">
+                      {[0, 1, 2].map((i) => (
+                        <div
+                          key={i}
+                          className="h-8 rounded-md bg-muted/50 animate-pulse"
+                        />
+                      ))}
+                    </div>
+                  ) : activity.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      No status changes recorded yet.
+                    </p>
+                  ) : (
+                    <ul className="space-y-2.5 max-h-72 overflow-y-auto">
+                      {activity.map((entry) => (
+                        <li
+                          key={entry.id}
+                          className="text-sm flex items-start gap-2"
+                        >
+                          <span
+                            className="size-1.5 rounded-full mt-1.5 shrink-0"
+                            style={{
+                              backgroundColor: statusStrong[entry.toStatus],
+                            }}
+                          />
+                          <span className="text-foreground">
+                            <span className="font-medium">
+                              {entry.entityName}
+                            </span>{" "}
+                            <span className="text-muted-foreground">
+                              {entry.fromStatus
+                                ? `moved from ${statusConfig[entry.fromStatus].label} to`
+                                : "set to"}
+                            </span>{" "}
+                            <span className="font-medium">
+                              {statusConfig[entry.toStatus].label}
+                            </span>
+                            <span className="block text-xs text-muted-foreground/70 tabular-nums">
+                              {new Date(entry.changedAt).toLocaleString(
+                                "en-US",
+                                {
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "numeric",
+                                  minute: "2-digit",
+                                },
+                              )}
+                            </span>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               </div>
             </motion.div>

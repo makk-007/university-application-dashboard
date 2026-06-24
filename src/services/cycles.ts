@@ -1,5 +1,5 @@
 import { supabase } from "../app/lib/supabase";
-import { ApplicationCycle } from "../app/types";
+import { ApplicationCycle, FX_TO_GHS } from "../app/types";
 import { parseSupabaseError } from "./errors";
 import { getUniversities, duplicateUniversity } from "./universities";
 import { getScholarships, duplicateScholarship } from "./scholarships";
@@ -260,4 +260,54 @@ export async function duplicateCycleContents(
   }
 
   return { universitiesDuplicated, scholarshipsDuplicated, failures };
+}
+
+export interface CycleCloseOutSummary {
+  cycleId: string;
+  totalUniversities: number;
+  acceptedCount: number;
+  rejectedCount: number;
+  pendingCount: number;
+  totalScholarships: number;
+  awardedCount: number;
+  fundingSecuredGHS: number;
+}
+
+/**
+ * Fetch a final-outcomes summary for a cycle whose end date has passed,
+ * to help the person review and decide whether to archive it. Pending
+ * here means anything other than a finalized outcome (accepted, rejected,
+ * waitlisted, or withdrawn for universities; awarded, rejected, waitlisted,
+ * or withdrawn for scholarships), matching the same definition already
+ * used in the dashboard's per-cycle breakdown.
+ */
+export async function getCycleCloseOutSummary(
+  cycleId: string,
+): Promise<CycleCloseOutSummary> {
+  const [universities, scholarships] = await Promise.all([
+    getUniversities(cycleId),
+    getScholarships(cycleId),
+  ]);
+
+  return {
+    cycleId,
+    totalUniversities: universities.length,
+    acceptedCount: universities.filter((u) => u.status === "accepted").length,
+    rejectedCount: universities.filter((u) => u.status === "rejected").length,
+    pendingCount: universities.filter(
+      (u) =>
+        u.status !== "accepted" &&
+        u.status !== "rejected" &&
+        u.status !== "waitlisted" &&
+        u.status !== "withdrawn",
+    ).length,
+    totalScholarships: scholarships.length,
+    awardedCount: scholarships.filter((s) => s.status === "awarded").length,
+    fundingSecuredGHS: scholarships
+      .filter((s) => s.status === "awarded")
+      .reduce(
+        (sum, s) => sum + (s.amount ?? 0) * (FX_TO_GHS[s.currency] ?? 1),
+        0,
+      ),
+  };
 }
