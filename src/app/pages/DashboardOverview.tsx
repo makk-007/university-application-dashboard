@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   GraduationCap,
   FileText,
@@ -66,6 +66,32 @@ export function DashboardOverview() {
     getNotificationPermission(),
   );
   const [activity, setActivity] = useState<ActivityFeedEntry[]>([]);
+  const leftColumnRef = useRef<HTMLDivElement | null>(null);
+  const [rightColumnMaxHeight, setRightColumnMaxHeight] = useState<
+    number | undefined
+  >(undefined);
+  const [isDesktopLayout, setIsDesktopLayout] = useState(
+    () => typeof window !== "undefined" && window.innerWidth >= 1024,
+  );
+
+  useEffect(() => {
+    const el = leftColumnRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      const height = entries[0]?.contentRect.height;
+      if (height) setRightColumnMaxHeight(height);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [loading]);
+
+  // The two-column layout only applies at the lg breakpoint and up; below
+  // that the columns stack, so the height cap should not apply there.
+  useEffect(() => {
+    const handleResize = () => setIsDesktopLayout(window.innerWidth >= 1024);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
   const [activityLoading, setActivityLoading] = useState(true);
 
   useEffect(() => {
@@ -408,7 +434,7 @@ export function DashboardOverview() {
           <Skeleton className="h-4 w-80" />
         </header>
         <div className="p-4 sm:p-8 space-y-6 sm:space-y-8">
-          <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {Array.from({ length: 8 }).map((_, i) => (
               <div
                 key={i}
@@ -789,7 +815,7 @@ export function DashboardOverview() {
             )}
 
             {/* KPI Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <KPICard
                 title="Total"
                 delay={0}
@@ -860,10 +886,10 @@ export function DashboardOverview() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.45, ease: "easeOut" }}
-              className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6"
+              className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 items-start"
             >
               {/* Charts */}
-              <div className="lg:col-span-2 space-y-6">
+              <div ref={leftColumnRef} className="lg:col-span-2 space-y-6">
                 <div className="bg-card rounded-xl border card-resting p-6">
                   <h2 className="text-lg font-semibold text-card-foreground mb-2">
                     Application Status Distribution
@@ -971,8 +997,14 @@ export function DashboardOverview() {
                 </div>
               </div>
 
-              {/* Right panel */}
-              <div className="space-y-5">
+              <div
+                className="space-y-5 overflow-y-auto pr-1"
+                style={
+                  rightColumnMaxHeight && isDesktopLayout
+                    ? { maxHeight: `${rightColumnMaxHeight}px` }
+                    : undefined
+                }
+              >
                 {/* Upcoming Deadlines : universities + scholarships */}
                 <div className="bg-card rounded-xl border card-resting p-5">
                   <h2 className="text-base font-semibold text-card-foreground mb-1 flex items-center gap-2">
@@ -1210,7 +1242,7 @@ export function DashboardOverview() {
                       No status changes recorded yet.
                     </p>
                   ) : (
-                    <ul className="space-y-2.5 max-h-72 overflow-y-auto">
+                    <ul className="space-y-2.5">
                       {activity.map((entry) => (
                         <li
                           key={entry.id}
