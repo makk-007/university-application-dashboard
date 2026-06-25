@@ -6,7 +6,7 @@ import {
   DEFAULT_SCHOLARSHIP_CHECKLIST_ITEMS,
   BulkDeleteResult,
 } from "../app/types";
-import { parseSupabaseError } from "./errors";
+import { parseSupabaseError, ConflictError } from "./errors";
 
 // ── Mappers ──────────────────────────────────────────────────────────────────
 
@@ -28,6 +28,7 @@ function rowToScholarship(
     link: row.link ?? "",
     startDate: row.start_date ?? null,
     deadline: row.deadline ?? null,
+    updatedAt: row.updated_at ?? null,
     checklist,
   };
 }
@@ -172,7 +173,8 @@ export async function createScholarship(
 export async function updateScholarship(
   id: string,
   data: Partial<Omit<Scholarship, "id" | "checklist">>,
-): Promise<void> {
+  expectedUpdatedAt?: string | null,
+): Promise<string | null> {
   const updateData: Record<string, any> = {};
   if (data.cycleId !== undefined) updateData.cycle_id = data.cycleId;
   if (data.name !== undefined) updateData.name = data.name;
@@ -185,18 +187,27 @@ export async function updateScholarship(
   if (data.startDate !== undefined) updateData.start_date = data.startDate;
   if (data.deadline !== undefined) updateData.deadline = data.deadline;
 
+  let newUpdatedAt: string | null = expectedUpdatedAt ?? null;
+
   if (Object.keys(updateData).length > 0) {
-    const { error } = await supabase
-      .from("scholarships")
-      .update(updateData)
-      .eq("id", id);
+    let query = supabase.from("scholarships").update(updateData).eq("id", id);
+    if (expectedUpdatedAt) {
+      query = query.eq("updated_at", expectedUpdatedAt);
+    }
+    const { data: updatedRows, error } = await query.select("id, updated_at");
     if (error) throw new Error(parseSupabaseError(error));
+    if (expectedUpdatedAt && (!updatedRows || updatedRows.length === 0)) {
+      throw new ConflictError();
+    }
+    newUpdatedAt = updatedRows?.[0]?.updated_at ?? newUpdatedAt;
   }
 
   // Update university links if provided
   if (data.eligibleUniversities !== undefined) {
     await setScholarshipUniversities(id, data.eligibleUniversities);
   }
+
+  return newUpdatedAt;
 }
 
 export async function deleteScholarship(id: string): Promise<void> {

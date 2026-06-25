@@ -30,6 +30,7 @@ import { BulkDeleteConfirmModal } from "../components/BulkDeleteConfirmModal";
 import { StatusTransitionConfirmModal } from "../components/StatusTransitionConfirmModal";
 import { DuplicateToCycleModal } from "../components/DuplicateToCycleModal";
 import { StatusHistorySection } from "../components/StatusHistorySection";
+import { AmountHistorySection } from "../components/AmountHistorySection";
 import { StatusBadge } from "../components/StatusBadge";
 import { Skeleton } from "../components/ui/skeleton";
 import { OverdueBadge } from "../components/OverdueBadge";
@@ -55,10 +56,15 @@ import {
   setScholarshipUniversities,
 } from "../../services/scholarships";
 import { getUniversities } from "../../services/universities";
+import { ConflictError } from "../../services/errors";
 import {
   logScholarshipStatusChange,
   getScholarshipStatusHistory,
 } from "../../services/statusHistory";
+import {
+  logScholarshipAmountChange,
+  getScholarshipAmountHistory,
+} from "../../services/amountHistory";
 import {
   inputCls,
   selectCls,
@@ -469,16 +475,40 @@ function ScholarshipDetailDrawer({
 
   const saveField = async (field: string, value: any) => {
     setSavingField(field);
+    const previousAmount = s.amount;
     try {
-      await updateScholarship(s.id, { [field]: value === "" ? null : value });
-      const updated = { ...s, [field]: value === "" ? null : value };
+      const newUpdatedAt = await updateScholarship(
+        s.id,
+        { [field]: value === "" ? null : value },
+        s.updatedAt,
+      );
+      const updated = {
+        ...s,
+        [field]: value === "" ? null : value,
+        updatedAt: newUpdatedAt ?? s.updatedAt,
+      };
       setS(updated);
       onUpdated(updated);
       toast.success("Saved", {
         description: `${field.replace(/([A-Z])/g, " $1").trim()} updated`,
       });
+      if (field === "amount") {
+        logScholarshipAmountChange(
+          s.id,
+          previousAmount,
+          Number(value),
+          updated.currency,
+        );
+      }
     } catch (e: any) {
-      toast.error("Failed to save", { description: e.message });
+      if (e instanceof ConflictError) {
+        toast.error("Couldn't save", {
+          description: e.message,
+          action: { label: "Reload", onClick: onClose },
+        });
+      } else {
+        toast.error("Failed to save", { description: e.message });
+      }
     } finally {
       setSavingField(null);
     }
@@ -491,8 +521,12 @@ function ScholarshipDetailDrawer({
     setSavingStatus(true);
     const previousStatus = s.status;
     try {
-      await updateScholarship(s.id, { status });
-      const updated = { ...s, status };
+      const newUpdatedAt = await updateScholarship(
+        s.id,
+        { status },
+        s.updatedAt,
+      );
+      const updated = { ...s, status, updatedAt: newUpdatedAt ?? s.updatedAt };
       setS(updated);
       onUpdated(updated);
       toast.success("Status updated", {
@@ -500,7 +534,14 @@ function ScholarshipDetailDrawer({
       });
       logScholarshipStatusChange(s.id, previousStatus, status);
     } catch (e: any) {
-      toast.error("Failed to update status", { description: e.message });
+      if (e instanceof ConflictError) {
+        toast.error("Couldn't update status", {
+          description: e.message,
+          action: { label: "Reload", onClick: onClose },
+        });
+      } else {
+        toast.error("Failed to update status", { description: e.message });
+      }
     } finally {
       setSavingStatus(false);
     }
@@ -519,12 +560,27 @@ function ScholarshipDetailDrawer({
     const t = setTimeout(async () => {
       setSavingNotes(true);
       try {
-        await updateScholarship(s.id, { notes: val });
-        const updated = { ...s, notes: val };
+        const newUpdatedAt = await updateScholarship(
+          s.id,
+          { notes: val },
+          s.updatedAt,
+        );
+        const updated = {
+          ...s,
+          notes: val,
+          updatedAt: newUpdatedAt ?? s.updatedAt,
+        };
         setS(updated);
         onUpdated(updated);
       } catch (e: any) {
-        toast.error("Failed to save notes", { description: e.message });
+        if (e instanceof ConflictError) {
+          toast.error("Couldn't save notes", {
+            description: e.message,
+            action: { label: "Reload", onClick: onClose },
+          });
+        } else {
+          toast.error("Failed to save notes", { description: e.message });
+        }
       } finally {
         setSavingNotes(false);
       }
@@ -907,6 +963,11 @@ function ScholarshipDetailDrawer({
 
           <StatusHistorySection
             fetchHistory={() => getScholarshipStatusHistory(s.id)}
+          />
+
+          <AmountHistorySection
+            label="Amount History"
+            fetchHistory={() => getScholarshipAmountHistory(s.id)}
           />
 
           <div>

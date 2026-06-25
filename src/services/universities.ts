@@ -6,7 +6,7 @@ import {
   DEFAULT_CHECKLIST_ITEMS,
   BulkDeleteResult,
 } from "../app/types";
-import { parseSupabaseError } from "./errors";
+import { parseSupabaseError, ConflictError } from "./errors";
 
 // ── Mappers ──────────────────────────────────────────────────────────────────
 
@@ -27,6 +27,7 @@ function rowToUniversity(
     deadline: row.deadline ?? null,
     applicationLink: row.application_link ?? "",
     notes: row.notes ?? "",
+    updatedAt: row.updated_at ?? null,
     checklist,
     scholarships,
   };
@@ -158,10 +159,20 @@ export async function createUniversity(
   return getUniversity(uni.id);
 }
 
+/**
+ * Update a university. If expectedUpdatedAt is provided, the update only
+ * applies if the row's updated_at still matches what the caller last
+ * read; if another tab or session changed the row in the meantime,
+ * updated_at will have moved on and zero rows will match, at which point
+ * a ConflictError is thrown instead of silently overwriting the other
+ * change. Callers that don't pass expectedUpdatedAt get the previous,
+ * unconditional behavior.
+ */
 export async function updateUniversity(
   id: string,
   data: Partial<Omit<University, "id" | "checklist" | "scholarships">>,
-): Promise<void> {
+  expectedUpdatedAt?: string | null,
+): Promise<string | null> {
   const updateData: Record<string, any> = {};
   if (data.cycleId !== undefined) updateData.cycle_id = data.cycleId;
   if (data.name !== undefined) updateData.name = data.name;
@@ -175,12 +186,18 @@ export async function updateUniversity(
     updateData.application_link = data.applicationLink;
   if (data.notes !== undefined) updateData.notes = data.notes;
 
-  const { error } = await supabase
-    .from("universities")
-    .update(updateData)
-    .eq("id", id);
+  let query = supabase.from("universities").update(updateData).eq("id", id);
+  if (expectedUpdatedAt) {
+    query = query.eq("updated_at", expectedUpdatedAt);
+  }
+
+  const { data: updatedRows, error } = await query.select("id, updated_at");
 
   if (error) throw new Error(parseSupabaseError(error));
+  if (expectedUpdatedAt && (!updatedRows || updatedRows.length === 0)) {
+    throw new ConflictError();
+  }
+  return updatedRows?.[0]?.updated_at ?? null;
 }
 
 export async function deleteUniversity(id: string): Promise<void> {

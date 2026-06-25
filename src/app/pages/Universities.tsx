@@ -29,6 +29,7 @@ import { BulkDeleteConfirmModal } from "../components/BulkDeleteConfirmModal";
 import { StatusTransitionConfirmModal } from "../components/StatusTransitionConfirmModal";
 import { DuplicateToCycleModal } from "../components/DuplicateToCycleModal";
 import { StatusHistorySection } from "../components/StatusHistorySection";
+import { AmountHistorySection } from "../components/AmountHistorySection";
 import { StatusBadge } from "../components/StatusBadge";
 import { Skeleton } from "../components/ui/skeleton";
 import {
@@ -58,10 +59,15 @@ import {
   updateChecklistItem,
   deleteChecklistItem,
 } from "../../services/universities";
+import { ConflictError } from "../../services/errors";
 import {
   logUniversityStatusChange,
   getUniversityStatusHistory,
 } from "../../services/statusHistory";
+import {
+  logUniversityAmountChange,
+  getUniversityAmountHistory,
+} from "../../services/amountHistory";
 
 const REGIONS = [
   "North America",
@@ -419,16 +425,40 @@ function UniversityDetailDrawer({
 
   const saveField = async (field: string, value: any) => {
     setSavingField(field);
+    const previousTuition = uni.tuition;
     try {
-      await updateUniversity(uni.id, { [field]: value === "" ? null : value });
-      const updated = { ...uni, [field]: value === "" ? null : value };
+      const newUpdatedAt = await updateUniversity(
+        uni.id,
+        { [field]: value === "" ? null : value },
+        uni.updatedAt,
+      );
+      const updated = {
+        ...uni,
+        [field]: value === "" ? null : value,
+        updatedAt: newUpdatedAt ?? uni.updatedAt,
+      };
       setUni(updated);
       onUpdated(updated);
       toast.success("Saved", {
         description: `${field.replace(/([A-Z])/g, " $1").trim()} updated`,
       });
+      if (field === "tuition") {
+        logUniversityAmountChange(
+          uni.id,
+          previousTuition,
+          Number(value),
+          updated.currency,
+        );
+      }
     } catch (e: any) {
-      toast.error("Failed to save", { description: e.message });
+      if (e instanceof ConflictError) {
+        toast.error("Couldn't save", {
+          description: e.message,
+          action: { label: "Reload", onClick: onClose },
+        });
+      } else {
+        toast.error("Failed to save", { description: e.message });
+      }
     } finally {
       setSavingField(null);
     }
@@ -442,8 +472,16 @@ function UniversityDetailDrawer({
     setSavingStatus(true);
     const previousStatus = uni.status;
     try {
-      await updateUniversity(uni.id, { status });
-      const updated = { ...uni, status };
+      const newUpdatedAt = await updateUniversity(
+        uni.id,
+        { status },
+        uni.updatedAt,
+      );
+      const updated = {
+        ...uni,
+        status,
+        updatedAt: newUpdatedAt ?? uni.updatedAt,
+      };
       setUni(updated);
       onUpdated(updated);
       toast.success("Status updated", {
@@ -451,7 +489,14 @@ function UniversityDetailDrawer({
       });
       logUniversityStatusChange(uni.id, previousStatus, status);
     } catch (e: any) {
-      toast.error("Failed to update status", { description: e.message });
+      if (e instanceof ConflictError) {
+        toast.error("Couldn't update status", {
+          description: e.message,
+          action: { label: "Reload", onClick: onClose },
+        });
+      } else {
+        toast.error("Failed to update status", { description: e.message });
+      }
     } finally {
       setSavingStatus(false);
     }
@@ -471,12 +516,27 @@ function UniversityDetailDrawer({
     const t = setTimeout(async () => {
       setSavingNotes(true);
       try {
-        await updateUniversity(uni.id, { notes: val });
-        const updated = { ...uni, notes: val };
+        const newUpdatedAt = await updateUniversity(
+          uni.id,
+          { notes: val },
+          uni.updatedAt,
+        );
+        const updated = {
+          ...uni,
+          notes: val,
+          updatedAt: newUpdatedAt ?? uni.updatedAt,
+        };
         setUni(updated);
         onUpdated(updated);
       } catch (e: any) {
-        toast.error("Failed to save notes", { description: e.message });
+        if (e instanceof ConflictError) {
+          toast.error("Couldn't save notes", {
+            description: e.message,
+            action: { label: "Reload", onClick: onClose },
+          });
+        } else {
+          toast.error("Failed to save notes", { description: e.message });
+        }
       } finally {
         setSavingNotes(false);
       }
@@ -837,6 +897,11 @@ function UniversityDetailDrawer({
 
           <StatusHistorySection
             fetchHistory={() => getUniversityStatusHistory(uni.id)}
+          />
+
+          <AmountHistorySection
+            label="Tuition History"
+            fetchHistory={() => getUniversityAmountHistory(uni.id)}
           />
 
           <div>
