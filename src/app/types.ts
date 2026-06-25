@@ -48,6 +48,7 @@ export interface University {
   deadline: string | null;
   applicationLink?: string;
   notes?: string;
+  updatedAt?: string | null;
   checklist: ChecklistItem[];
   scholarships?: LinkedScholarship[];
 }
@@ -69,6 +70,7 @@ export interface Scholarship {
   link?: string;
   startDate?: string | null;
   deadline?: string | null;
+  updatedAt?: string | null;
   checklist: ChecklistItem[];
 }
 
@@ -76,6 +78,14 @@ export interface StatusHistoryEntry {
   id: string;
   fromStatus: ApplicationStatus | null;
   toStatus: ApplicationStatus;
+  changedAt: string;
+}
+
+export interface AmountHistoryEntry {
+  id: string;
+  fromAmount: number | null;
+  toAmount: number;
+  currency: string;
   changedAt: string;
 }
 

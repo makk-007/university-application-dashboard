@@ -1,4 +1,20 @@
 /**
+ * Thrown when an update is rejected because the record was changed by
+ * someone else (e.g. another browser tab) since the caller last read it.
+ * Detected via optimistic concurrency: the update is conditioned on the
+ * row's updated_at still matching what the caller expected, and zero
+ * rows match if it has moved on.
+ */
+export class ConflictError extends Error {
+  constructor(
+    message = "This record was changed elsewhere. Reload to see the latest version before saving again.",
+  ) {
+    super(message);
+    this.name = "ConflictError";
+  }
+}
+
+/**
  * parseSupabaseError
  *
  * Translates raw Supabase / PostgREST errors into friendly, actionable

@@ -128,6 +128,34 @@ CREATE INDEX IF NOT EXISTS status_history_scholarship_idx
   ON status_history(scholarship_id) WHERE scholarship_id IS NOT NULL;
 
 -- ============================================================
+-- AMOUNT HISTORY TABLE
+-- ============================================================
+-- Records changes to a university's tuition or a scholarship's amount.
+-- Mirrors status_history's structure: exactly one of university_id /
+-- scholarship_id is set per row, scoped by user_id directly for simple,
+-- fast RLS.
+CREATE TABLE IF NOT EXISTS amount_history (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  university_id UUID REFERENCES universities(id) ON DELETE CASCADE,
+  scholarship_id UUID REFERENCES scholarships(id) ON DELETE CASCADE,
+  from_amount NUMERIC(12,2),
+  to_amount NUMERIC(12,2) NOT NULL,
+  currency TEXT NOT NULL,
+  changed_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT amount_history_exactly_one_parent CHECK (
+    (university_id IS NOT NULL AND scholarship_id IS NULL) OR
+    (university_id IS NULL AND scholarship_id IS NOT NULL)
+  )
+);
+
+CREATE INDEX IF NOT EXISTS amount_history_university_idx
+  ON amount_history(university_id) WHERE university_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS amount_history_scholarship_idx
+  ON amount_history(scholarship_id) WHERE scholarship_id IS NOT NULL;
+
+-- ============================================================
 -- UPDATED_AT TRIGGER
 -- ============================================================
 CREATE OR REPLACE FUNCTION handle_updated_at()
@@ -218,6 +246,13 @@ CREATE POLICY "Users can manage their own status history"
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
+-- Amount History
+ALTER TABLE amount_history ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can manage their own amount history"
+  ON amount_history FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
 -- ============================================================
 -- INDEXES for performance
 -- ============================================================
@@ -232,5 +267,6 @@ CREATE INDEX IF NOT EXISTS idx_application_cycles_user_id ON application_cycles(
 CREATE INDEX IF NOT EXISTS idx_checklist_university_id ON checklist(university_id);
 CREATE INDEX IF NOT EXISTS idx_scholarship_checklist_id ON scholarship_checklist(scholarship_id);
 CREATE INDEX IF NOT EXISTS idx_status_history_user_id ON status_history(user_id);
+CREATE INDEX IF NOT EXISTS idx_amount_history_user_id ON amount_history(user_id);
 CREATE INDEX IF NOT EXISTS idx_scholarship_universities_scholarship ON scholarship_universities(scholarship_id);
 CREATE INDEX IF NOT EXISTS idx_scholarship_universities_university ON scholarship_universities(university_id);
