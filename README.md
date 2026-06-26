@@ -211,3 +211,11 @@ The `supabase/migrations/` folder tracks incremental schema changes applied afte
 | `004_add_amount_history.sql`      | `amount_history` table for tuition/amount change logging               |
 
 A fresh install via `schema.sql` already includes all of the above - the migration files are only needed when upgrading a database that was provisioned before a given change shipped.
+
+---
+
+## License
+
+[#-license](#-license)
+
+This project is licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE). You're free to use, modify, and distribute it for any noncommercial purpose. Commercial use requires permission from the licensor.
