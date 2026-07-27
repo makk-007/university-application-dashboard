@@ -17,6 +17,7 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Scholarship, ApplicationStatus, University } from "../types";
@@ -453,6 +454,11 @@ function ScholarshipDetailDrawer({
     scholarship.startDate ?? "",
   );
   const [editDeadline, setEditDeadline] = useState(scholarship.deadline ?? "");
+  const [editLink, setEditLink] = useState(scholarship.link ?? "");
+  const [linkError, setLinkError] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState(false);
+  const [editName, setEditName] = useState(scholarship.name);
+  const [nameError, setNameError] = useState<string | null>(null);
   const [pendingUnis, setPendingUnis] = useState<string[]>(
     scholarship.eligibleUniversities,
   );
@@ -470,6 +476,11 @@ function ScholarshipDetailDrawer({
     setEditCurrency(scholarship.currency ?? "GHS");
     setEditStartDate(scholarship.startDate ?? "");
     setEditDeadline(scholarship.deadline ?? "");
+    setEditLink(scholarship.link ?? "");
+    setLinkError(null);
+    setEditingName(false);
+    setEditName(scholarship.name);
+    setNameError(null);
     setPendingUnis(scholarship.eligibleUniversities);
   }, [scholarship.id]);
 
@@ -607,6 +618,30 @@ function ScholarshipDetailDrawer({
       setSavingUnis(false);
     }
   };
+  const handleLinkBlur = () => {
+    const trimmed = editLink.trim();
+    if (trimmed && !/^https?:\/\//i.test(trimmed)) {
+      setLinkError("Link must start with http:// or https://");
+      return;
+    }
+    setLinkError(null);
+    if (trimmed !== (s.link ?? "")) {
+      saveField("link", trimmed);
+    }
+  };
+
+  const handleNameSave = async () => {
+    const trimmed = editName.trim();
+    if (!trimmed) {
+      setNameError("Name cannot be empty");
+      return;
+    }
+    setNameError(null);
+    setEditingName(false);
+    if (trimmed === s.name) return;
+    await saveField("name", trimmed);
+  };
+
   const handleToggleCheck = async (itemId: string, checked: boolean) => {
     try {
       await updateScholarshipChecklistItem(itemId, checked);
@@ -690,9 +725,40 @@ function ScholarshipDetailDrawer({
       >
         <div className="sticky top-0 bg-card border-b border-border px-6 py-4 flex items-center justify-between">
           <div className="min-w-0 pr-4">
-            <h2 className="text-xl font-semibold text-card-foreground truncate">
-              {s.name}
-            </h2>
+            {editingName ? (
+              <div>
+                <input
+                  autoFocus
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  onBlur={handleNameSave}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter")
+                      (e.target as HTMLInputElement).blur();
+                    if (e.key === "Escape") {
+                      setEditName(s.name);
+                      setNameError(null);
+                      setEditingName(false);
+                    }
+                  }}
+                  className="text-xl font-semibold text-card-foreground bg-transparent border-b-2 border-primary outline-none w-full"
+                />
+                {nameError && (
+                  <p className="text-xs text-destructive mt-1">{nameError}</p>
+                )}
+              </div>
+            ) : (
+              <button
+                onClick={() => setEditingName(true)}
+                className="group flex items-center gap-2 min-w-0 text-left"
+                aria-label="Edit scholarship name"
+              >
+                <h2 className="text-xl font-semibold text-card-foreground truncate">
+                  {s.name}
+                </h2>
+                <Pencil className="size-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+              </button>
+            )}
             {(showCycleBadge || isOverdue(s.status, s.deadline ?? null)) && (
               <div className="flex items-center gap-2 mt-1">
                 {showCycleBadge && (
@@ -860,6 +926,30 @@ function ScholarshipDetailDrawer({
                   </p>
                 )}
             </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-sm font-medium text-foreground">
+                Scholarship Link
+              </label>
+              {savingField === "link" && (
+                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Loader2 className="size-3 animate-spin" />
+                  Saving…
+                </span>
+              )}
+            </div>
+            <input
+              value={editLink}
+              onChange={(e) => setEditLink(e.target.value)}
+              onBlur={handleLinkBlur}
+              placeholder="https://..."
+              className={`${inputCls} ${linkError ? "border-destructive focus-visible:border-destructive" : ""}`}
+            />
+            {linkError && (
+              <p className="text-xs text-destructive mt-1">{linkError}</p>
+            )}
           </div>
 
           <div>
