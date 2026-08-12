@@ -26,6 +26,7 @@ export interface ChecklistItem {
   scholarshipId?: string;
   item: string;
   completed: boolean;
+  order: number;
 }
 
 export interface LinkedScholarship {
