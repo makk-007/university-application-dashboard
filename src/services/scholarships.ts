@@ -60,7 +60,7 @@ export async function getScholarships(
     .from("scholarship_checklist")
     .select("*")
     .in("scholarship_id", scholIds)
-    .order("created_at", { ascending: true });
+    .order("sort_order", { ascending: true });
 
   const { data: linkRows } = await supabase
     .from("scholarship_universities")
@@ -78,6 +78,7 @@ export async function getScholarships(
       scholarshipId: row.scholarship_id,
       item: row.item,
       completed: row.completed,
+      order: row.sort_order ?? 0,
     });
   });
 
@@ -104,7 +105,7 @@ export async function getScholarship(id: string): Promise<Scholarship> {
     .from("scholarship_checklist")
     .select("*")
     .eq("scholarship_id", id)
-    .order("created_at", { ascending: true });
+    .order("sort_order", { ascending: true });
 
   const { data: linkRows } = await supabase
     .from("scholarship_universities")
@@ -116,6 +117,7 @@ export async function getScholarship(id: string): Promise<Scholarship> {
     scholarshipId: row.scholarship_id,
     item: row.item,
     completed: row.completed,
+    order: row.sort_order ?? 0,
   }));
 
   const eligibleUniversities = (linkRows ?? []).map((row) => row.university_id);
@@ -159,10 +161,11 @@ export async function createScholarship(
   // Add default checklist items
   if (DEFAULT_SCHOLARSHIP_CHECKLIST_ITEMS.length > 0) {
     await supabase.from("scholarship_checklist").insert(
-      DEFAULT_SCHOLARSHIP_CHECKLIST_ITEMS.map((item) => ({
+      DEFAULT_SCHOLARSHIP_CHECKLIST_ITEMS.map((item, index) => ({
         scholarship_id: schol.id,
         item,
         completed: false,
+        sort_order: index,
       })),
     );
   }
@@ -295,10 +298,11 @@ export async function importScholarships(
       );
       if (row.checklistItems.length > 0) {
         await supabase.from("scholarship_checklist").insert(
-          row.checklistItems.map((item) => ({
+          row.checklistItems.map((item, index) => ({
             scholarship_id: schol.id,
             item,
             completed: false,
+            sort_order: index,
           })),
         );
       }
@@ -349,10 +353,11 @@ export async function duplicateScholarship(
   );
   if (source.checklist.length > 0) {
     await supabase.from("scholarship_checklist").insert(
-      source.checklist.map((item) => ({
+      source.checklist.map((item, index) => ({
         scholarship_id: created.id,
         item: item.item,
         completed: false,
+        sort_order: index,
       })),
     );
   }
@@ -390,9 +395,23 @@ export async function addScholarshipChecklistItem(
   scholarshipId: string,
   item: string,
 ): Promise<ChecklistItem> {
+  const { data: existing } = await supabase
+    .from("scholarship_checklist")
+    .select("sort_order")
+    .eq("scholarship_id", scholarshipId)
+    .order("sort_order", { ascending: false })
+    .limit(1);
+
+  const nextOrder = (existing?.[0]?.sort_order ?? -1) + 1;
+
   const { data, error } = await supabase
     .from("scholarship_checklist")
-    .insert({ scholarship_id: scholarshipId, item, completed: false })
+    .insert({
+      scholarship_id: scholarshipId,
+      item,
+      completed: false,
+      sort_order: nextOrder,
+    })
     .select()
     .single();
 
@@ -402,6 +421,7 @@ export async function addScholarshipChecklistItem(
     scholarshipId: data.scholarship_id,
     item: data.item,
     completed: data.completed,
+    order: data.sort_order ?? 0,
   };
 }
 
@@ -415,6 +435,31 @@ export async function updateScholarshipChecklistItem(
     .eq("id", id);
 
   if (error) throw new Error(parseSupabaseError(error));
+}
+
+export async function renameScholarshipChecklistItem(
+  id: string,
+  item: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from("scholarship_checklist")
+    .update({ item })
+    .eq("id", id);
+
+  if (error) throw new Error(parseSupabaseError(error));
+}
+
+export async function reorderScholarshipChecklistItems(
+  orderedIds: string[],
+): Promise<void> {
+  await Promise.all(
+    orderedIds.map((id, index) =>
+      supabase
+        .from("scholarship_checklist")
+        .update({ sort_order: index })
+        .eq("id", id),
+    ),
+  );
 }
 
 export async function deleteScholarshipChecklistItem(

@@ -87,6 +87,7 @@ CREATE TABLE IF NOT EXISTS checklist (
   university_id UUID NOT NULL REFERENCES universities(id) ON DELETE CASCADE,
   item TEXT NOT NULL,
   completed BOOLEAN DEFAULT FALSE,
+  sort_order INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -98,6 +99,7 @@ CREATE TABLE IF NOT EXISTS scholarship_checklist (
   scholarship_id UUID NOT NULL REFERENCES scholarships(id) ON DELETE CASCADE,
   item TEXT NOT NULL,
   completed BOOLEAN DEFAULT FALSE,
+  sort_order INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -266,6 +268,8 @@ CREATE INDEX IF NOT EXISTS idx_scholarships_cycle_id ON scholarships(cycle_id);
 CREATE INDEX IF NOT EXISTS idx_application_cycles_user_id ON application_cycles(user_id);
 CREATE INDEX IF NOT EXISTS idx_checklist_university_id ON checklist(university_id);
 CREATE INDEX IF NOT EXISTS idx_scholarship_checklist_id ON scholarship_checklist(scholarship_id);
+CREATE INDEX IF NOT EXISTS idx_checklist_sort_order ON checklist(university_id, sort_order);
+CREATE INDEX IF NOT EXISTS idx_scholarship_checklist_sort_order ON scholarship_checklist(scholarship_id, sort_order);
 CREATE INDEX IF NOT EXISTS idx_status_history_user_id ON status_history(user_id);
 CREATE INDEX IF NOT EXISTS idx_amount_history_user_id ON amount_history(user_id);
 CREATE INDEX IF NOT EXISTS idx_scholarship_universities_scholarship ON scholarship_universities(scholarship_id);

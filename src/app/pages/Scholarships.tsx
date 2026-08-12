@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence, Reorder } from "motion/react";
 import {
   Plus,
   Search,
@@ -18,6 +18,7 @@ import {
   ArrowUp,
   ArrowDown,
   Pencil,
+  GripVertical,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Scholarship, ApplicationStatus, University } from "../types";
@@ -53,6 +54,8 @@ import {
   duplicateScholarship,
   addScholarshipChecklistItem,
   updateScholarshipChecklistItem,
+  renameScholarshipChecklistItem,
+  reorderScholarshipChecklistItems,
   deleteScholarshipChecklistItem,
   setScholarshipUniversities,
 } from "../../services/scholarships";
@@ -442,6 +445,10 @@ function ScholarshipDetailDrawer({
   );
   const [notes, setNotes] = useState(scholarship.notes ?? "");
   const [newCheckItem, setNewCheckItem] = useState("");
+  const [editingChecklistId, setEditingChecklistId] = useState<string | null>(
+    null,
+  );
+  const [editChecklistText, setEditChecklistText] = useState("");
   const [notesTimer, setNotesTimer] = useState<ReturnType<
     typeof setTimeout
   > | null>(null);
@@ -698,6 +705,46 @@ function ScholarshipDetailDrawer({
           description: e.message,
         }),
     });
+  };
+
+  const handleRenameCheck = async (itemId: string) => {
+    const trimmed = editChecklistText.trim();
+    const original = s.checklist.find((c) => c.id === itemId);
+    setEditingChecklistId(null);
+    if (!trimmed || !original || trimmed === original.item) return;
+
+    const beforeChecklist = s.checklist;
+    const updated = {
+      ...s,
+      checklist: s.checklist.map((c) =>
+        c.id === itemId ? { ...c, item: trimmed } : c,
+      ),
+    };
+    setS(updated);
+    onUpdated(updated);
+    try {
+      await renameScholarshipChecklistItem(itemId, trimmed);
+    } catch (e: any) {
+      setS({ ...s, checklist: beforeChecklist });
+      onUpdated({ ...s, checklist: beforeChecklist });
+      toast.error("Failed to rename requirement", { description: e.message });
+    }
+  };
+
+  const handleReorderCheck = async (reordered: typeof s.checklist) => {
+    const beforeChecklist = s.checklist;
+    const updated = { ...s, checklist: reordered };
+    setS(updated);
+    onUpdated(updated);
+    try {
+      await reorderScholarshipChecklistItems(reordered.map((c) => c.id));
+    } catch (e: any) {
+      setS({ ...s, checklist: beforeChecklist });
+      onUpdated({ ...s, checklist: beforeChecklist });
+      toast.error("Failed to reorder requirements", {
+        description: e.message,
+      });
+    }
   };
 
   const handleDuplicate = async (targetCycleId: string | null) => {
@@ -1003,36 +1050,65 @@ function ScholarshipDetailDrawer({
                 {completed}/{total}
               </span>
             </label>
-            <div className="space-y-2">
+            <Reorder.Group
+              axis="y"
+              values={s.checklist}
+              onReorder={handleReorderCheck}
+              className="space-y-2"
+            >
               {s.checklist.map((item) => (
-                <motion.div
+                <Reorder.Item
                   key={item.id}
-                  layout
-                  className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors group"
+                  value={item}
+                  className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors group"
                 >
+                  <div className="cursor-grab active:cursor-grabbing text-muted-foreground/50 group-hover:text-muted-foreground touch-none">
+                    <GripVertical className="size-4" aria-hidden="true" />
+                  </div>
                   <input
                     type="checkbox"
                     checked={item.completed}
                     onChange={() => handleToggleCheck(item.id, !item.completed)}
                     className="size-4 rounded border-border text-primary focus:ring-ring cursor-pointer"
                   />
-                  <motion.span
-                    initial={false}
-                    animate={{ opacity: item.completed ? 0.6 : 1 }}
-                    transition={{ duration: 0.15 }}
-                    className={`flex-1 text-sm ${item.completed ? "line-through text-muted-foreground" : "text-foreground"}`}
-                  >
-                    {item.item}
-                  </motion.span>
+                  {editingChecklistId === item.id ? (
+                    <input
+                      autoFocus
+                      value={editChecklistText}
+                      onChange={(e) => setEditChecklistText(e.target.value)}
+                      onBlur={() => handleRenameCheck(item.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter")
+                          (e.target as HTMLInputElement).blur();
+                        if (e.key === "Escape") {
+                          setEditingChecklistId(null);
+                        }
+                      }}
+                      className="flex-1 text-sm bg-transparent border-b border-primary outline-none text-foreground"
+                    />
+                  ) : (
+                    <motion.span
+                      initial={false}
+                      animate={{ opacity: item.completed ? 0.6 : 1 }}
+                      transition={{ duration: 0.15 }}
+                      onClick={() => {
+                        setEditingChecklistId(item.id);
+                        setEditChecklistText(item.item);
+                      }}
+                      className={`flex-1 text-sm cursor-text ${item.completed ? "line-through text-muted-foreground" : "text-foreground"}`}
+                    >
+                      {item.item}
+                    </motion.span>
+                  )}
                   <button
                     onClick={() => handleDeleteCheck(item.id)}
                     className="opacity-0 group-hover:opacity-100 p-1 hover:bg-destructive/10 hover:text-destructive rounded transition-all"
                   >
                     <Trash2 className="size-3.5" aria-hidden="true" />
                   </button>
-                </motion.div>
+                </Reorder.Item>
               ))}
-            </div>
+            </Reorder.Group>
             <div className="mt-3 flex gap-2">
               <input
                 value={newCheckItem}
