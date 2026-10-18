@@ -11,7 +11,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   const location = useLocation();
 
   return (
-    <AnimatePresence mode="wait" initial={false}>
+    <AnimatePresence mode="wait">
       <motion.div
         key={location.pathname}
         variants={variants}

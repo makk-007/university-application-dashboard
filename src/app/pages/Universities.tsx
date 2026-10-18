@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence, Reorder } from "motion/react";
 import {
   Plus,
   Search,
@@ -16,6 +16,8 @@ import {
   ArrowDown,
   ArrowUpDown,
   Copy,
+  Pencil,
+  GripVertical,
 } from "lucide-react";
 import { toast } from "sonner";
 import { University, ApplicationStatus } from "../types";
@@ -57,6 +59,8 @@ import {
   duplicateUniversity,
   addChecklistItem,
   updateChecklistItem,
+  renameChecklistItem,
+  reorderChecklistItems,
   deleteChecklistItem,
 } from "../../services/universities";
 import { ConflictError } from "../../services/errors";
@@ -397,6 +401,10 @@ function UniversityDetailDrawer({
   );
   const [notes, setNotes] = useState(university.notes ?? "");
   const [newCheckItem, setNewCheckItem] = useState("");
+  const [editingChecklistId, setEditingChecklistId] = useState<string | null>(
+    null,
+  );
+  const [editChecklistText, setEditChecklistText] = useState("");
   const [notesTimer, setNotesTimer] = useState<ReturnType<
     typeof setTimeout
   > | null>(null);
@@ -412,6 +420,11 @@ function UniversityDetailDrawer({
     university.startDate ?? "",
   );
   const [editDeadline, setEditDeadline] = useState(university.deadline ?? "");
+  const [editLink, setEditLink] = useState(university.applicationLink ?? "");
+  const [linkError, setLinkError] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState(false);
+  const [editName, setEditName] = useState(university.name);
+  const [nameError, setNameError] = useState<string | null>(null);
 
   useEffect(() => {
     setUni(university);
@@ -421,6 +434,11 @@ function UniversityDetailDrawer({
     setEditCurrency(university.currency ?? "USD");
     setEditStartDate(university.startDate ?? "");
     setEditDeadline(university.deadline ?? "");
+    setEditLink(university.applicationLink ?? "");
+    setLinkError(null);
+    setEditingName(false);
+    setEditName(university.name);
+    setNameError(null);
   }, [university.id]);
 
   const saveField = async (field: string, value: any) => {
@@ -544,6 +562,30 @@ function UniversityDetailDrawer({
     setNotesTimer(t);
   };
 
+  const handleLinkBlur = () => {
+    const trimmed = editLink.trim();
+    if (trimmed && !/^https?:\/\//i.test(trimmed)) {
+      setLinkError("Link must start with http:// or https://");
+      return;
+    }
+    setLinkError(null);
+    if (trimmed !== (uni.applicationLink ?? "")) {
+      saveField("applicationLink", trimmed);
+    }
+  };
+
+  const handleNameSave = async () => {
+    const trimmed = editName.trim();
+    if (!trimmed) {
+      setNameError("Name cannot be empty");
+      return;
+    }
+    setNameError(null);
+    setEditingName(false);
+    if (trimmed === uni.name) return;
+    await saveField("name", trimmed);
+  };
+
   const handleToggleCheck = async (itemId: string, checked: boolean) => {
     try {
       await updateChecklistItem(itemId, checked);
@@ -604,6 +646,46 @@ function UniversityDetailDrawer({
     });
   };
 
+  const handleRenameCheck = async (itemId: string) => {
+    const trimmed = editChecklistText.trim();
+    const original = uni.checklist.find((c) => c.id === itemId);
+    setEditingChecklistId(null);
+    if (!trimmed || !original || trimmed === original.item) return;
+
+    const beforeChecklist = uni.checklist;
+    const updated = {
+      ...uni,
+      checklist: uni.checklist.map((c) =>
+        c.id === itemId ? { ...c, item: trimmed } : c,
+      ),
+    };
+    setUni(updated);
+    onUpdated(updated);
+    try {
+      await renameChecklistItem(itemId, trimmed);
+    } catch (e: any) {
+      setUni({ ...uni, checklist: beforeChecklist });
+      onUpdated({ ...uni, checklist: beforeChecklist });
+      toast.error("Failed to rename requirement", { description: e.message });
+    }
+  };
+
+  const handleReorderCheck = async (reordered: typeof uni.checklist) => {
+    const beforeChecklist = uni.checklist;
+    const updated = { ...uni, checklist: reordered };
+    setUni(updated);
+    onUpdated(updated);
+    try {
+      await reorderChecklistItems(reordered.map((c) => c.id));
+    } catch (e: any) {
+      setUni({ ...uni, checklist: beforeChecklist });
+      onUpdated({ ...uni, checklist: beforeChecklist });
+      toast.error("Failed to reorder requirements", {
+        description: e.message,
+      });
+    }
+  };
+
   const handleDuplicate = async (targetCycleId: string | null) => {
     const duplicate = await duplicateUniversity(uni.id, targetCycleId);
     toast.success("University duplicated", {
@@ -628,9 +710,40 @@ function UniversityDetailDrawer({
       >
         <div className="sticky top-0 bg-card border-b border-border px-6 py-4 flex items-center justify-between">
           <div className="min-w-0 pr-4">
-            <h2 className="text-xl font-semibold text-card-foreground truncate">
-              {uni.name}
-            </h2>
+            {editingName ? (
+              <div>
+                <input
+                  autoFocus
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  onBlur={handleNameSave}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter")
+                      (e.target as HTMLInputElement).blur();
+                    if (e.key === "Escape") {
+                      setEditName(uni.name);
+                      setNameError(null);
+                      setEditingName(false);
+                    }
+                  }}
+                  className="text-xl font-semibold text-card-foreground bg-transparent border-b-2 border-primary outline-none w-full"
+                />
+                {nameError && (
+                  <p className="text-xs text-destructive mt-1">{nameError}</p>
+                )}
+              </div>
+            ) : (
+              <button
+                onClick={() => setEditingName(true)}
+                className="group flex items-center gap-2 min-w-0 text-left"
+                aria-label="Edit university name"
+              >
+                <h2 className="text-xl font-semibold text-card-foreground truncate">
+                  {uni.name}
+                </h2>
+                <Pencil className="size-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+              </button>
+            )}
             {(showCycleBadge || isOverdue(uni.status, uni.deadline)) && (
               <div className="flex items-center gap-2 mt-1">
                 {showCycleBadge && (
@@ -797,6 +910,30 @@ function UniversityDetailDrawer({
           </div>
 
           <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-sm font-medium text-foreground">
+                Application Link
+              </label>
+              {savingField === "applicationLink" && (
+                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Loader2 className="size-3 animate-spin" />
+                  Saving…
+                </span>
+              )}
+            </div>
+            <input
+              value={editLink}
+              onChange={(e) => setEditLink(e.target.value)}
+              onBlur={handleLinkBlur}
+              placeholder="https://..."
+              className={`${inputCls} ${linkError ? "border-destructive focus-visible:border-destructive" : ""}`}
+            />
+            {linkError && (
+              <p className="text-xs text-destructive mt-1">{linkError}</p>
+            )}
+          </div>
+
+          <div>
             <label className="text-sm font-medium text-foreground mb-2 block">
               Application Status
             </label>
@@ -847,36 +984,65 @@ function UniversityDetailDrawer({
                 {completed}/{total}
               </span>
             </label>
-            <div className="space-y-2">
+            <Reorder.Group
+              axis="y"
+              values={uni.checklist}
+              onReorder={handleReorderCheck}
+              className="space-y-2"
+            >
               {uni.checklist.map((item) => (
-                <motion.div
+                <Reorder.Item
                   key={item.id}
-                  layout
-                  className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors group"
+                  value={item}
+                  className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors group"
                 >
+                  <div className="cursor-grab active:cursor-grabbing text-muted-foreground/50 group-hover:text-muted-foreground touch-none">
+                    <GripVertical className="size-4" aria-hidden="true" />
+                  </div>
                   <input
                     type="checkbox"
                     checked={item.completed}
                     onChange={() => handleToggleCheck(item.id, !item.completed)}
                     className="size-4 rounded border-border text-primary focus:ring-ring cursor-pointer"
                   />
-                  <motion.span
-                    initial={false}
-                    animate={{ opacity: item.completed ? 0.6 : 1 }}
-                    transition={{ duration: 0.15 }}
-                    className={`flex-1 text-sm ${item.completed ? "line-through text-muted-foreground" : "text-foreground"}`}
-                  >
-                    {item.item}
-                  </motion.span>
+                  {editingChecklistId === item.id ? (
+                    <input
+                      autoFocus
+                      value={editChecklistText}
+                      onChange={(e) => setEditChecklistText(e.target.value)}
+                      onBlur={() => handleRenameCheck(item.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter")
+                          (e.target as HTMLInputElement).blur();
+                        if (e.key === "Escape") {
+                          setEditingChecklistId(null);
+                        }
+                      }}
+                      className="flex-1 text-sm bg-transparent border-b border-primary outline-none text-foreground"
+                    />
+                  ) : (
+                    <motion.span
+                      initial={false}
+                      animate={{ opacity: item.completed ? 0.6 : 1 }}
+                      transition={{ duration: 0.15 }}
+                      onClick={() => {
+                        setEditingChecklistId(item.id);
+                        setEditChecklistText(item.item);
+                      }}
+                      className={`flex-1 text-sm cursor-text ${item.completed ? "line-through text-muted-foreground" : "text-foreground"}`}
+                    >
+                      {item.item}
+                    </motion.span>
+                  )}
                   <button
                     onClick={() => handleDeleteCheck(item.id)}
                     className="opacity-0 group-hover:opacity-100 p-1 hover:bg-destructive/10 hover:text-destructive rounded transition-all"
                   >
                     <Trash2 className="size-3.5" aria-hidden="true" />
                   </button>
-                </motion.div>
+                </Reorder.Item>
               ))}
-            </div>
+            </Reorder.Group>
             <div className="mt-3 flex gap-2">
               <input
                 value={newCheckItem}

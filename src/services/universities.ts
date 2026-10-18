@@ -59,7 +59,7 @@ export async function getUniversities(cycleId?: string): Promise<University[]> {
     .from("checklist")
     .select("*")
     .in("university_id", uniIds)
-    .order("created_at", { ascending: true });
+    .order("sort_order", { ascending: true });
 
   // Fetch scholarship links
   const { data: linkRows } = await supabase
@@ -77,6 +77,7 @@ export async function getUniversities(cycleId?: string): Promise<University[]> {
       universityId: row.university_id,
       item: row.item,
       completed: row.completed,
+      order: row.sort_order ?? 0,
     });
   });
 
@@ -105,13 +106,14 @@ export async function getUniversity(id: string): Promise<University> {
     .from("checklist")
     .select("*")
     .eq("university_id", id)
-    .order("created_at", { ascending: true });
+    .order("sort_order", { ascending: true });
 
   const checklist: ChecklistItem[] = (checklistRows ?? []).map((row) => ({
     id: row.id,
     universityId: row.university_id,
     item: row.item,
     completed: row.completed,
+    order: row.sort_order ?? 0,
   }));
 
   return rowToUniversity(uni, checklist);
@@ -148,10 +150,11 @@ export async function createUniversity(
   // Add default checklist items
   if (DEFAULT_CHECKLIST_ITEMS.length > 0) {
     await supabase.from("checklist").insert(
-      DEFAULT_CHECKLIST_ITEMS.map((item) => ({
+      DEFAULT_CHECKLIST_ITEMS.map((item, index) => ({
         university_id: uni.id,
         item,
         completed: false,
+        sort_order: index,
       })),
     );
   }
@@ -288,10 +291,11 @@ export async function importUniversities(
       );
       if (row.checklistItems.length > 0) {
         await supabase.from("checklist").insert(
-          row.checklistItems.map((item) => ({
+          row.checklistItems.map((item, index) => ({
             university_id: uni.id,
             item,
             completed: false,
+            sort_order: index,
           })),
         );
       }
@@ -340,10 +344,11 @@ export async function duplicateUniversity(
   );
   if (source.checklist.length > 0) {
     await supabase.from("checklist").insert(
-      source.checklist.map((item) => ({
+      source.checklist.map((item, index) => ({
         university_id: created.id,
         item: item.item,
         completed: false,
+        sort_order: index,
       })),
     );
   }
@@ -357,9 +362,23 @@ export async function addChecklistItem(
   universityId: string,
   item: string,
 ): Promise<ChecklistItem> {
+  const { data: existing } = await supabase
+    .from("checklist")
+    .select("sort_order")
+    .eq("university_id", universityId)
+    .order("sort_order", { ascending: false })
+    .limit(1);
+
+  const nextOrder = (existing?.[0]?.sort_order ?? -1) + 1;
+
   const { data, error } = await supabase
     .from("checklist")
-    .insert({ university_id: universityId, item, completed: false })
+    .insert({
+      university_id: universityId,
+      item,
+      completed: false,
+      sort_order: nextOrder,
+    })
     .select()
     .single();
 
@@ -369,6 +388,7 @@ export async function addChecklistItem(
     universityId: data.university_id,
     item: data.item,
     completed: data.completed,
+    order: data.sort_order ?? 0,
   };
 }
 
@@ -382,6 +402,28 @@ export async function updateChecklistItem(
     .eq("id", id);
 
   if (error) throw new Error(parseSupabaseError(error));
+}
+
+export async function renameChecklistItem(
+  id: string,
+  item: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from("checklist")
+    .update({ item })
+    .eq("id", id);
+
+  if (error) throw new Error(parseSupabaseError(error));
+}
+
+export async function reorderChecklistItems(
+  orderedIds: string[],
+): Promise<void> {
+  await Promise.all(
+    orderedIds.map((id, index) =>
+      supabase.from("checklist").update({ sort_order: index }).eq("id", id),
+    ),
+  );
 }
 
 export async function deleteChecklistItem(id: string): Promise<void> {
