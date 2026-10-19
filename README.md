@@ -18,7 +18,7 @@ Built with **React + TypeScript + Tailwind CSS** on the frontend and **Supabase*
 
 1. In your Supabase dashboard, open **SQL Editor** in the left sidebar.
 2. Open `supabase/schema.sql` from this project, copy its full contents, and run it in the SQL Editor. This creates every table, index, trigger, and RLS policy in one pass.
-3. If you are upgrading an **existing** database rather than starting fresh, run the numbered files in `supabase/migrations/` in order instead (`001_...` through `004_...`). Each one is idempotent and safe to re-run.
+3. If you are upgrading an **existing** database rather than starting fresh, run the numbered files in `supabase/migrations/` in order instead (`001_...` through `005_...`). Each one is idempotent and safe to re-run.
 
 ### 3. Configure Environment Variables
 
@@ -203,12 +203,13 @@ No external CSV, calendar, or notification libraries are used - those are implem
 
 The `supabase/migrations/` folder tracks incremental schema changes applied after the original schema:
 
-| File                              | Adds                                                                   |
-| --------------------------------- | ---------------------------------------------------------------------- |
-| `001_add_withdrawn_status.sql`    | `withdrawn` application status                                         |
-| `002_add_cycle_archived_flag.sql` | Explicit `is_archived` flag on cycles, distinct from `is_active`       |
-| `003_add_status_history.sql`      | `status_history` table for status-change logging and the activity feed |
-| `004_add_amount_history.sql`      | `amount_history` table for tuition/amount change logging               |
+| File                               | Adds                                                                   |
+| ---------------------------------- | ---------------------------------------------------------------------- |
+| `001_add_withdrawn_status.sql`     | `withdrawn` application status                                         |
+| `002_add_cycle_archived_flag.sql`  | Explicit `is_archived` flag on cycles, distinct from `is_active`       |
+| `003_add_status_history.sql`       | `status_history` table for status-change logging and the activity feed |
+| `004_add_amount_history.sql`       | `amount_history` table for tuition/amount change logging               |
+| `005_add_checklist_sort_order.sql` | `sort_order` on both checklist tables, backfilled in creation order    |
 
 A fresh install via `schema.sql` already includes all of the above - the migration files are only needed when upgrading a database that was provisioned before a given change shipped.
 
