@@ -15,6 +15,14 @@ export class ConflictError extends Error {
 }
 
 /**
+ * Extracts a displayable message from a caught value. Caught values are
+ * typed `unknown`, so this narrows safely instead of assuming an Error.
+ */
+export function getErrorMessage(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
+}
+
+/**
  * parseSupabaseError
  *
  * Translates raw Supabase / PostgREST errors into friendly, actionable
@@ -25,7 +33,9 @@ export class ConflictError extends Error {
  *
  * PostgreSQL error codes: https://www.postgresql.org/docs/current/errcodes-appendix.html
  */
-export function parseSupabaseError(error: any): string {
+export function parseSupabaseError(
+  error: { code?: string | null; message?: string | null } | null | undefined,
+): string {
   if (!error) return "An unexpected error occurred. Please try again.";
 
   const code: string = error.code ?? "";

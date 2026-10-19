@@ -108,6 +108,7 @@ src/
 │   │   ├── Timeline.tsx                     # Gantt-style application timeline
 │   │   └── Settings.tsx                     # Cycles, data, currencies, account
 │   ├── lib/supabase.ts                      # Typed Supabase client
+│   ├── lib/database.types.ts                # Generated DB types (supabase gen types)
 │   ├── routes.tsx
 │   └── types.ts                             # Shared TypeScript types
 ├── services/                                # Data access layer (one file per entity)
@@ -212,6 +213,13 @@ The `supabase/migrations/` folder tracks incremental schema changes applied afte
 | `005_add_checklist_sort_order.sql` | `sort_order` on both checklist tables, backfilled in creation order    |
 
 A fresh install via `schema.sql` already includes all of the above - the migration files are only needed when upgrading a database that was provisioned before a given change shipped.
+
+After any schema change, regenerate the typed client definitions so the services stay in sync with the database:
+
+```bash
+npx supabase login
+npx supabase gen types typescript --project-id <your-project-ref> > src/app/lib/database.types.ts
+```
 
 ---
 

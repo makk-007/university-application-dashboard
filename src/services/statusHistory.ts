@@ -1,5 +1,6 @@
 import { supabase } from "../app/lib/supabase";
 import { ApplicationStatus, StatusHistoryEntry } from "../app/types";
+import type { Tables } from "../app/lib/database.types";
 import { parseSupabaseError } from "./errors";
 
 export interface ActivityFeedEntry extends StatusHistoryEntry {
@@ -8,12 +9,12 @@ export interface ActivityFeedEntry extends StatusHistoryEntry {
   entityName: string;
 }
 
-function rowToEntry(row: any): StatusHistoryEntry {
+function rowToEntry(row: Tables<"status_history">): StatusHistoryEntry {
   return {
     id: row.id,
-    fromStatus: row.from_status ?? null,
-    toStatus: row.to_status,
-    changedAt: row.changed_at,
+    fromStatus: (row.from_status ?? null) as ApplicationStatus | null,
+    toStatus: row.to_status as ApplicationStatus,
+    changedAt: row.changed_at ?? "",
   };
 }
 
@@ -109,7 +110,7 @@ export async function getRecentActivity(
   if (error) throw new Error(parseSupabaseError(error));
 
   return (data ?? [])
-    .map((row: any) => {
+    .map((row) => {
       const isUniversity = row.university_id !== null;
       const entityName = isUniversity
         ? row.universities?.name

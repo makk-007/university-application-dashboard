@@ -6,12 +6,13 @@ import {
   DEFAULT_SCHOLARSHIP_CHECKLIST_ITEMS,
   BulkDeleteResult,
 } from "../app/types";
-import { parseSupabaseError, ConflictError } from "./errors";
+import type { Tables, TablesUpdate } from "../app/lib/database.types";
+import { parseSupabaseError, ConflictError, getErrorMessage } from "./errors";
 
 // ── Mappers ──────────────────────────────────────────────────────────────────
 
 function rowToScholarship(
-  row: any,
+  row: Tables<"scholarships">,
   checklist: ChecklistItem[] = [],
   eligibleUniversities: string[] = [],
 ): Scholarship {
@@ -22,7 +23,7 @@ function rowToScholarship(
     status: row.status as ApplicationStatus,
     amount: row.amount ?? 0,
     currency: row.currency ?? "GHS",
-    coverage: row.coverage ?? "Full Scholarship",
+    coverage: (row.coverage ?? "Full Scholarship") as Scholarship["coverage"],
     eligibleUniversities,
     notes: row.notes ?? "",
     link: row.link ?? "",
@@ -77,7 +78,7 @@ export async function getScholarships(
       id: row.id,
       scholarshipId: row.scholarship_id,
       item: row.item,
-      completed: row.completed,
+      completed: row.completed ?? false,
       order: row.sort_order ?? 0,
     });
   });
@@ -116,7 +117,7 @@ export async function getScholarship(id: string): Promise<Scholarship> {
     id: row.id,
     scholarshipId: row.scholarship_id,
     item: row.item,
-    completed: row.completed,
+    completed: row.completed ?? false,
     order: row.sort_order ?? 0,
   }));
 
@@ -178,7 +179,7 @@ export async function updateScholarship(
   data: Partial<Omit<Scholarship, "id" | "checklist">>,
   expectedUpdatedAt?: string | null,
 ): Promise<string | null> {
-  const updateData: Record<string, any> = {};
+  const updateData: TablesUpdate<"scholarships"> = {};
   if (data.cycleId !== undefined) updateData.cycle_id = data.cycleId;
   if (data.name !== undefined) updateData.name = data.name;
   if (data.status !== undefined) updateData.status = data.status;
@@ -242,8 +243,8 @@ export async function deleteScholarships(
     try {
       await deleteScholarship(id);
       succeededIds.push(id);
-    } catch (e: any) {
-      failures.push({ id, message: e.message });
+    } catch (e) {
+      failures.push({ id, message: getErrorMessage(e) });
     }
   }
   return { succeededIds, failures };
@@ -308,8 +309,8 @@ export async function importScholarships(
       }
 
       created++;
-    } catch (e: any) {
-      failures.push(`${row.name}: ${e.message}`);
+    } catch (e) {
+      failures.push(`${row.name}: ${getErrorMessage(e)}`);
     }
   }
 
@@ -420,7 +421,7 @@ export async function addScholarshipChecklistItem(
     id: data.id,
     scholarshipId: data.scholarship_id,
     item: data.item,
-    completed: data.completed,
+    completed: data.completed ?? false,
     order: data.sort_order ?? 0,
   };
 }
