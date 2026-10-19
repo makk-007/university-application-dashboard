@@ -1,14 +1,15 @@
 import { supabase } from "../app/lib/supabase";
 import { AmountHistoryEntry } from "../app/types";
+import type { Tables } from "../app/lib/database.types";
 import { parseSupabaseError } from "./errors";
 
-function rowToEntry(row: any): AmountHistoryEntry {
+function rowToEntry(row: Tables<"amount_history">): AmountHistoryEntry {
   return {
     id: row.id,
     fromAmount: row.from_amount !== null ? Number(row.from_amount) : null,
     toAmount: Number(row.to_amount),
     currency: row.currency,
-    changedAt: row.changed_at,
+    changedAt: row.changed_at ?? "",
   };
 }
 

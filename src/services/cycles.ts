@@ -1,12 +1,13 @@
 import { supabase } from "../app/lib/supabase";
 import { ApplicationCycle, FX_TO_GHS } from "../app/types";
-import { parseSupabaseError } from "./errors";
+import type { Tables, TablesUpdate } from "../app/lib/database.types";
+import { parseSupabaseError, getErrorMessage } from "./errors";
 import { getUniversities, duplicateUniversity } from "./universities";
 import { getScholarships, duplicateScholarship } from "./scholarships";
 
 // ── Mappers ──────────────────────────────────────────────────────────────────
 
-function rowToCycle(row: any): ApplicationCycle {
+function rowToCycle(row: Tables<"application_cycles">): ApplicationCycle {
   return {
     id: row.id,
     name: row.name,
@@ -15,7 +16,7 @@ function rowToCycle(row: any): ApplicationCycle {
     endDate: row.end_date ?? null,
     isActive: row.is_active ?? false,
     isArchived: row.is_archived ?? false,
-    createdAt: row.created_at,
+    createdAt: row.created_at ?? undefined,
   };
 }
 
@@ -96,7 +97,7 @@ export async function updateCycle(
   id: string,
   data: Partial<Omit<ApplicationCycle, "id" | "createdAt">>,
 ): Promise<void> {
-  const updateData: Record<string, any> = {};
+  const updateData: TablesUpdate<"application_cycles"> = {};
   if (data.name !== undefined) updateData.name = data.name;
   if (data.description !== undefined) updateData.description = data.description;
   if (data.startDate !== undefined) updateData.start_date = data.startDate;
@@ -245,8 +246,8 @@ export async function duplicateCycleContents(
     try {
       await duplicateUniversity(uni.id, targetCycleId);
       universitiesDuplicated++;
-    } catch (e: any) {
-      failures.push(`${uni.name}: ${e.message}`);
+    } catch (e) {
+      failures.push(`${uni.name}: ${getErrorMessage(e)}`);
     }
   }
 
@@ -254,8 +255,8 @@ export async function duplicateCycleContents(
     try {
       await duplicateScholarship(schol.id, targetCycleId);
       scholarshipsDuplicated++;
-    } catch (e: any) {
-      failures.push(`${schol.name}: ${e.message}`);
+    } catch (e) {
+      failures.push(`${schol.name}: ${getErrorMessage(e)}`);
     }
   }
 

@@ -15,6 +15,9 @@ application_state.json
 universities.csv
 migration.sql
 
+# Supabase CLI local state (project ref, cache)
+supabase/.temp
+
 # Logs and OS files
 *.log
 .DS_Store

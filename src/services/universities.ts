@@ -3,17 +3,19 @@ import {
   University,
   ChecklistItem,
   ApplicationStatus,
+  LinkedScholarship,
   DEFAULT_CHECKLIST_ITEMS,
   BulkDeleteResult,
 } from "../app/types";
-import { parseSupabaseError, ConflictError } from "./errors";
+import type { Tables, TablesUpdate } from "../app/lib/database.types";
+import { parseSupabaseError, ConflictError, getErrorMessage } from "./errors";
 
 // ── Mappers ──────────────────────────────────────────────────────────────────
 
 function rowToUniversity(
-  row: any,
+  row: Tables<"universities">,
   checklist: ChecklistItem[] = [],
-  scholarships: any[] = [],
+  scholarships: LinkedScholarship[] = [],
 ): University {
   return {
     id: row.id,
@@ -68,7 +70,7 @@ export async function getUniversities(cycleId?: string): Promise<University[]> {
     .in("university_id", uniIds);
 
   const checklistMap: Record<string, ChecklistItem[]> = {};
-  const scholarshipMap: Record<string, any[]> = {};
+  const scholarshipMap: Record<string, LinkedScholarship[]> = {};
 
   (checklistRows ?? []).forEach((row) => {
     if (!checklistMap[row.university_id]) checklistMap[row.university_id] = [];
@@ -76,16 +78,22 @@ export async function getUniversities(cycleId?: string): Promise<University[]> {
       id: row.id,
       universityId: row.university_id,
       item: row.item,
-      completed: row.completed,
+      completed: row.completed ?? false,
       order: row.sort_order ?? 0,
     });
   });
 
-  (linkRows ?? []).forEach((row: any) => {
+  (linkRows ?? []).forEach((row) => {
     if (!scholarshipMap[row.university_id])
       scholarshipMap[row.university_id] = [];
     if (row.scholarships)
-      scholarshipMap[row.university_id].push(row.scholarships);
+      scholarshipMap[row.university_id].push({
+        id: row.scholarships.id,
+        name: row.scholarships.name,
+        status: row.scholarships.status as ApplicationStatus,
+        amount: row.scholarships.amount ?? 0,
+        currency: row.scholarships.currency ?? "GHS",
+      });
   });
 
   return unis.map((u) =>
@@ -112,7 +120,7 @@ export async function getUniversity(id: string): Promise<University> {
     id: row.id,
     universityId: row.university_id,
     item: row.item,
-    completed: row.completed,
+    completed: row.completed ?? false,
     order: row.sort_order ?? 0,
   }));
 
@@ -176,7 +184,7 @@ export async function updateUniversity(
   data: Partial<Omit<University, "id" | "checklist" | "scholarships">>,
   expectedUpdatedAt?: string | null,
 ): Promise<string | null> {
-  const updateData: Record<string, any> = {};
+  const updateData: TablesUpdate<"universities"> = {};
   if (data.cycleId !== undefined) updateData.cycle_id = data.cycleId;
   if (data.name !== undefined) updateData.name = data.name;
   if (data.region !== undefined) updateData.region = data.region;
@@ -236,8 +244,8 @@ export async function deleteUniversities(
     try {
       await deleteUniversity(id);
       succeededIds.push(id);
-    } catch (e: any) {
-      failures.push({ id, message: e.message });
+    } catch (e) {
+      failures.push({ id, message: getErrorMessage(e) });
     }
   }
   return { succeededIds, failures };
@@ -301,8 +309,8 @@ export async function importUniversities(
       }
 
       created++;
-    } catch (e: any) {
-      failures.push(`${row.name}: ${e.message}`);
+    } catch (e) {
+      failures.push(`${row.name}: ${getErrorMessage(e)}`);
     }
   }
 
@@ -387,7 +395,7 @@ export async function addChecklistItem(
     id: data.id,
     universityId: data.university_id,
     item: data.item,
-    completed: data.completed,
+    completed: data.completed ?? false,
     order: data.sort_order ?? 0,
   };
 }
