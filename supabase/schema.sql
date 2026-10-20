@@ -1,6 +1,8 @@
 -- ============================================================
 -- Masters Application Tracker - Supabase Schema
--- Run this in the Supabase SQL Editor
+-- Run this in the Supabase SQL Editor. Safe to re-run: triggers and RLS
+-- policies are dropped and recreated, and tables use IF NOT EXISTS. It does
+-- not alter existing tables; use supabase/migrations/ to upgrade those.
 -- ============================================================
 
 -- Enable UUID extension
@@ -168,14 +170,17 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS universities_updated_at ON universities;
 CREATE TRIGGER universities_updated_at
   BEFORE UPDATE ON universities
   FOR EACH ROW EXECUTE FUNCTION handle_updated_at();
 
+DROP TRIGGER IF EXISTS scholarships_updated_at ON scholarships;
 CREATE TRIGGER scholarships_updated_at
   BEFORE UPDATE ON scholarships
   FOR EACH ROW EXECUTE FUNCTION handle_updated_at();
 
+DROP TRIGGER IF EXISTS application_cycles_updated_at ON application_cycles;
 CREATE TRIGGER application_cycles_updated_at
   BEFORE UPDATE ON application_cycles
   FOR EACH ROW EXECUTE FUNCTION handle_updated_at();
@@ -186,6 +191,7 @@ CREATE TRIGGER application_cycles_updated_at
 
 -- Universities
 ALTER TABLE universities ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can manage their own universities" ON universities;
 CREATE POLICY "Users can manage their own universities"
   ON universities FOR ALL
   USING (auth.uid() = user_id)
@@ -193,6 +199,7 @@ CREATE POLICY "Users can manage their own universities"
 
 -- Application Cycles
 ALTER TABLE application_cycles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can manage their own application cycles" ON application_cycles;
 CREATE POLICY "Users can manage their own application cycles"
   ON application_cycles FOR ALL
   USING (auth.uid() = user_id)
@@ -200,6 +207,7 @@ CREATE POLICY "Users can manage their own application cycles"
 
 -- Scholarships
 ALTER TABLE scholarships ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can manage their own scholarships" ON scholarships;
 CREATE POLICY "Users can manage their own scholarships"
   ON scholarships FOR ALL
   USING (auth.uid() = user_id)
@@ -207,6 +215,7 @@ CREATE POLICY "Users can manage their own scholarships"
 
 -- Scholarship_Universities
 ALTER TABLE scholarship_universities ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can manage their scholarship-university links" ON scholarship_universities;
 CREATE POLICY "Users can manage their scholarship-university links"
   ON scholarship_universities FOR ALL
   USING (
@@ -219,6 +228,7 @@ CREATE POLICY "Users can manage their scholarship-university links"
 
 -- Checklist
 ALTER TABLE checklist ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can manage checklist for their universities" ON checklist;
 CREATE POLICY "Users can manage checklist for their universities"
   ON checklist FOR ALL
   USING (
@@ -231,6 +241,7 @@ CREATE POLICY "Users can manage checklist for their universities"
 
 -- Scholarship Checklist
 ALTER TABLE scholarship_checklist ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can manage checklist for their scholarships" ON scholarship_checklist;
 CREATE POLICY "Users can manage checklist for their scholarships"
   ON scholarship_checklist FOR ALL
   USING (
@@ -243,6 +254,7 @@ CREATE POLICY "Users can manage checklist for their scholarships"
 
 -- Status History
 ALTER TABLE status_history ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can manage their own status history" ON status_history;
 CREATE POLICY "Users can manage their own status history"
   ON status_history FOR ALL
   USING (auth.uid() = user_id)
@@ -250,6 +262,7 @@ CREATE POLICY "Users can manage their own status history"
 
 -- Amount History
 ALTER TABLE amount_history ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can manage their own amount history" ON amount_history;
 CREATE POLICY "Users can manage their own amount history"
   ON amount_history FOR ALL
   USING (auth.uid() = user_id)
