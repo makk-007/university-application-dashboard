@@ -17,7 +17,7 @@ Built with **React + TypeScript + Tailwind CSS** on the frontend and **Supabase*
 ### 2. Run the Database Schema
 
 1. In your Supabase dashboard, open **SQL Editor** in the left sidebar.
-2. Open `supabase/schema.sql` from this project, copy its full contents, and run it in the SQL Editor. This creates every table, index, trigger, and RLS policy in one pass.
+2. Open `supabase/schema.sql` from this project, copy its full contents, and run it in the SQL Editor. This creates every table, index, trigger, and RLS policy in one pass. It is safe to re-run: triggers and policies are recreated, and existing tables and data are left as they are.
 3. If you are upgrading an **existing** database rather than starting fresh, run the numbered files in `supabase/migrations/` in order instead (`001_...` through `005_...`). Each one is idempotent and safe to re-run.
 
 ### 3. Configure Environment Variables
