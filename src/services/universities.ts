@@ -1,4 +1,5 @@
 import { supabase } from "../app/lib/supabase";
+import { requireUserId } from "./session";
 import {
   University,
   ChecklistItem,
@@ -38,12 +39,9 @@ function rowToUniversity(
 // ── CRUD ─────────────────────────────────────────────────────────────────────
 
 export async function getUniversities(cycleId?: string): Promise<University[]> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
+  const userId = await requireUserId();
 
-  let query = supabase.from("universities").select("*").eq("user_id", user.id);
+  let query = supabase.from("universities").select("*").eq("user_id", userId);
 
   if (cycleId) query = query.eq("cycle_id", cycleId);
 
@@ -130,15 +128,12 @@ export async function getUniversity(id: string): Promise<University> {
 export async function createUniversity(
   data: Omit<University, "id" | "checklist" | "scholarships">,
 ): Promise<University> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
+  const userId = await requireUserId();
 
   const { data: uni, error } = await supabase
     .from("universities")
     .insert({
-      user_id: user.id,
+      user_id: userId,
       cycle_id: data.cycleId ?? null,
       name: data.name,
       region: data.region,

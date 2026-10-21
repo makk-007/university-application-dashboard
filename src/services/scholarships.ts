@@ -1,4 +1,5 @@
 import { supabase } from "../app/lib/supabase";
+import { requireUserId } from "./session";
 import {
   Scholarship,
   ChecklistItem,
@@ -39,12 +40,9 @@ function rowToScholarship(
 export async function getScholarships(
   cycleId?: string,
 ): Promise<Scholarship[]> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
+  const userId = await requireUserId();
 
-  let query = supabase.from("scholarships").select("*").eq("user_id", user.id);
+  let query = supabase.from("scholarships").select("*").eq("user_id", userId);
 
   if (cycleId) query = query.eq("cycle_id", cycleId);
 
@@ -129,15 +127,12 @@ export async function getScholarship(id: string): Promise<Scholarship> {
 export async function createScholarship(
   data: Omit<Scholarship, "id" | "checklist">,
 ): Promise<Scholarship> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
+  const userId = await requireUserId();
 
   const { data: schol, error } = await supabase
     .from("scholarships")
     .insert({
-      user_id: user.id,
+      user_id: userId,
       cycle_id: data.cycleId ?? null,
       name: data.name,
       status: data.status,

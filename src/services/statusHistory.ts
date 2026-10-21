@@ -1,4 +1,5 @@
 import { supabase } from "../app/lib/supabase";
+import { getUserId } from "./session";
 import { ApplicationStatus, StatusHistoryEntry } from "../app/types";
 import type { Tables } from "../app/lib/database.types";
 import { parseSupabaseError } from "./errors";
@@ -28,13 +29,11 @@ export async function logUniversityStatusChange(
   fromStatus: ApplicationStatus | null,
   toStatus: ApplicationStatus,
 ): Promise<void> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return;
+  const userId = await getUserId();
+  if (!userId) return;
 
   const { error } = await supabase.from("status_history").insert({
-    user_id: user.id,
+    user_id: userId,
     university_id: universityId,
     from_status: fromStatus,
     to_status: toStatus,
@@ -49,13 +48,11 @@ export async function logScholarshipStatusChange(
   fromStatus: ApplicationStatus | null,
   toStatus: ApplicationStatus,
 ): Promise<void> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return;
+  const userId = await getUserId();
+  if (!userId) return;
 
   const { error } = await supabase.from("status_history").insert({
-    user_id: user.id,
+    user_id: userId,
     scholarship_id: scholarshipId,
     from_status: fromStatus,
     to_status: toStatus,

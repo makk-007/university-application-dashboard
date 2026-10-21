@@ -1,4 +1,5 @@
 import { supabase } from "../app/lib/supabase";
+import { requireUserId } from "./session";
 import { ApplicationCycle, FX_TO_GHS } from "../app/types";
 import type { Tables, TablesUpdate } from "../app/lib/database.types";
 import { parseSupabaseError, getErrorMessage } from "./errors";
@@ -23,15 +24,12 @@ function rowToCycle(row: Tables<"application_cycles">): ApplicationCycle {
 // ── CRUD ─────────────────────────────────────────────────────────────────────
 
 export async function getCycles(): Promise<ApplicationCycle[]> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
+  const userId = await requireUserId();
 
   const { data: rows, error } = await supabase
     .from("application_cycles")
     .select("*")
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .order("created_at", { ascending: true });
 
   if (error) throw new Error(parseSupabaseError(error));
@@ -39,15 +37,12 @@ export async function getCycles(): Promise<ApplicationCycle[]> {
 }
 
 export async function getActiveCycle(): Promise<ApplicationCycle | null> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
+  const userId = await requireUserId();
 
   const { data: row, error } = await supabase
     .from("application_cycles")
     .select("*")
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .eq("is_active", true)
     .maybeSingle();
 
@@ -60,10 +55,7 @@ export async function createCycle(
     isArchived?: boolean;
   },
 ): Promise<ApplicationCycle> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
+  const userId = await requireUserId();
 
   // If this new cycle is being created as active, deactivate any existing
   // active cycle first so the one-active-cycle-per-user constraint holds.
@@ -71,14 +63,14 @@ export async function createCycle(
     await supabase
       .from("application_cycles")
       .update({ is_active: false })
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .eq("is_active", true);
   }
 
   const { data: row, error } = await supabase
     .from("application_cycles")
     .insert({
-      user_id: user.id,
+      user_id: userId,
       name: data.name,
       description: data.description ?? "",
       start_date: data.startDate ?? null,
@@ -123,17 +115,14 @@ export async function setActiveCycle(
   id: string,
   isActive: boolean = true,
 ): Promise<void> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
+  const userId = await requireUserId();
 
   if (isActive) {
     // Deactivate the current active cycle (if any), then activate this one.
     const { error: deactivateError } = await supabase
       .from("application_cycles")
       .update({ is_active: false })
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .eq("is_active", true);
 
     if (deactivateError) throw new Error(parseSupabaseError(deactivateError));
