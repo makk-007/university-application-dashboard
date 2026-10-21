@@ -1,4 +1,5 @@
 import { supabase } from "../app/lib/supabase";
+import { getUserId } from "./session";
 import { AmountHistoryEntry } from "../app/types";
 import type { Tables } from "../app/lib/database.types";
 import { parseSupabaseError } from "./errors";
@@ -26,13 +27,11 @@ export async function logUniversityAmountChange(
 ): Promise<void> {
   if (fromAmount === toAmount) return;
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return;
+  const userId = await getUserId();
+  if (!userId) return;
 
   const { error } = await supabase.from("amount_history").insert({
-    user_id: user.id,
+    user_id: userId,
     university_id: universityId,
     from_amount: fromAmount,
     to_amount: toAmount,
@@ -51,13 +50,11 @@ export async function logScholarshipAmountChange(
 ): Promise<void> {
   if (fromAmount === toAmount) return;
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return;
+  const userId = await getUserId();
+  if (!userId) return;
 
   const { error } = await supabase.from("amount_history").insert({
-    user_id: user.id,
+    user_id: userId,
     scholarship_id: scholarshipId,
     from_amount: fromAmount,
     to_amount: toAmount,
