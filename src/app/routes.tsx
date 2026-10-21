@@ -1,31 +1,69 @@
-import React from "react";
 import { createBrowserRouter } from "react-router";
 import { Layout } from "./components/Layout";
-import { DashboardOverview } from "./pages/DashboardOverview";
-import { Universities } from "./pages/Universities";
-import { Scholarships } from "./pages/Scholarships";
-import { Timeline } from "./pages/Timeline";
-import { Settings } from "./pages/Settings";
-import { Auth } from "./pages/Auth";
+import { RouteFallback } from "./components/RouteFallback";
+import { RouteError } from "./components/RouteError";
+
+// Pages are loaded on demand so a first visit (often the sign-in screen) does
+// not download every page plus the charting library up front. The router
+// keeps the current page on screen until the next one has loaded, so page
+// navigations show no extra loading state.
+const routeDefaults = {
+  HydrateFallback: RouteFallback,
+  ErrorBoundary: RouteError,
+};
 
 export const router = createBrowserRouter([
   {
     path: "/login",
-    element: <Auth defaultMode="login" />,
+    ...routeDefaults,
+    lazy: async () => {
+      const { Auth } = await import("./pages/Auth");
+      return { Component: () => <Auth defaultMode="login" /> };
+    },
   },
   {
     path: "/signup",
-    element: <Auth defaultMode="signup" />,
+    ...routeDefaults,
+    lazy: async () => {
+      const { Auth } = await import("./pages/Auth");
+      return { Component: () => <Auth defaultMode="signup" /> };
+    },
   },
   {
     path: "/",
     Component: Layout,
+    ...routeDefaults,
     children: [
-      { index: true, Component: DashboardOverview },
-      { path: "universities", Component: Universities },
-      { path: "scholarships", Component: Scholarships },
-      { path: "timeline", Component: Timeline },
-      { path: "settings", Component: Settings },
+      {
+        index: true,
+        lazy: async () => ({
+          Component: (await import("./pages/DashboardOverview")).DashboardOverview,
+        }),
+      },
+      {
+        path: "universities",
+        lazy: async () => ({
+          Component: (await import("./pages/Universities")).Universities,
+        }),
+      },
+      {
+        path: "scholarships",
+        lazy: async () => ({
+          Component: (await import("./pages/Scholarships")).Scholarships,
+        }),
+      },
+      {
+        path: "timeline",
+        lazy: async () => ({
+          Component: (await import("./pages/Timeline")).Timeline,
+        }),
+      },
+      {
+        path: "settings",
+        lazy: async () => ({
+          Component: (await import("./pages/Settings")).Settings,
+        }),
+      },
     ],
   },
 ]);
