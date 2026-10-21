@@ -127,6 +127,7 @@ export async function getUniversity(id: string): Promise<University> {
 
 export async function createUniversity(
   data: Omit<University, "id" | "checklist" | "scholarships">,
+  checklistItems: readonly string[] = DEFAULT_CHECKLIST_ITEMS,
 ): Promise<University> {
   const userId = await requireUserId();
 
@@ -150,16 +151,23 @@ export async function createUniversity(
 
   if (error) throw new Error(parseSupabaseError(error));
 
-  // Add default checklist items
-  if (DEFAULT_CHECKLIST_ITEMS.length > 0) {
-    await supabase.from("checklist").insert(
-      DEFAULT_CHECKLIST_ITEMS.map((item, index) => ({
+  // Add the checklist: the defaults unless the caller supplies its own items
+  // (an empty list means no checklist). If this fails, remove the new
+  // university so the caller never ends up with a record that is missing its
+  // checklist while the operation looks successful.
+  if (checklistItems.length > 0) {
+    const { error: checklistError } = await supabase.from("checklist").insert(
+      checklistItems.map((item, index) => ({
         university_id: uni.id,
         item,
         completed: false,
         sort_order: index,
       })),
     );
+    if (checklistError) {
+      await supabase.from("universities").delete().eq("id", uni.id);
+      throw new Error(parseSupabaseError(checklistError));
+    }
   }
 
   return getUniversity(uni.id);
@@ -273,35 +281,23 @@ export async function importUniversities(
 
   for (const row of rows) {
     try {
-      const uni = await createUniversity({
-        cycleId: row.cycleId,
-        name: row.name,
-        region: row.region,
-        status: row.status,
-        tuition: row.tuition,
-        currency: row.currency,
-        startDate: row.startDate,
-        deadline: row.deadline,
-        applicationLink: row.applicationLink,
-        notes: row.notes,
-      });
-
-      // createUniversity seeds the default checklist; replace it with the
-      // imported checklist items (if any) so the import reflects exactly
+      // Pass the imported checklist items so the import reflects exactly
       // what was in the spreadsheet rather than a generic template.
-      await Promise.all(
-        uni.checklist.map((item) => deleteChecklistItem(item.id)),
+      await createUniversity(
+        {
+          cycleId: row.cycleId,
+          name: row.name,
+          region: row.region,
+          status: row.status,
+          tuition: row.tuition,
+          currency: row.currency,
+          startDate: row.startDate,
+          deadline: row.deadline,
+          applicationLink: row.applicationLink,
+          notes: row.notes,
+        },
+        row.checklistItems,
       );
-      if (row.checklistItems.length > 0) {
-        await supabase.from("checklist").insert(
-          row.checklistItems.map((item, index) => ({
-            university_id: uni.id,
-            item,
-            completed: false,
-            sort_order: index,
-          })),
-        );
-      }
 
       created++;
     } catch (e) {
@@ -326,37 +322,23 @@ export async function duplicateUniversity(
 ): Promise<University> {
   const source = await getUniversity(id);
 
-  const created = await createUniversity({
-    cycleId: targetCycleId,
-    name: source.name,
-    region: source.region,
-    status: "not-started",
-    tuition: source.tuition,
-    currency: source.currency,
-    startDate: source.startDate,
-    deadline: source.deadline,
-    applicationLink: source.applicationLink ?? "",
-    notes: source.notes ?? "",
-  });
-
-  // createUniversity already seeded the default checklist items; remove
-  // them and replace with an exact copy of the source's checklist so the
-  // duplicate mirrors the original rather than a generic template.
-  await Promise.all(
-    created.checklist.map((item) => deleteChecklistItem(item.id)),
+  // Pass the source's checklist so the duplicate mirrors the original
+  // rather than a generic template.
+  return createUniversity(
+    {
+      cycleId: targetCycleId,
+      name: source.name,
+      region: source.region,
+      status: "not-started",
+      tuition: source.tuition,
+      currency: source.currency,
+      startDate: source.startDate,
+      deadline: source.deadline,
+      applicationLink: source.applicationLink ?? "",
+      notes: source.notes ?? "",
+    },
+    source.checklist.map((item) => item.item),
   );
-  if (source.checklist.length > 0) {
-    await supabase.from("checklist").insert(
-      source.checklist.map((item, index) => ({
-        university_id: created.id,
-        item: item.item,
-        completed: false,
-        sort_order: index,
-      })),
-    );
-  }
-
-  return getUniversity(created.id);
 }
 
 // ── Checklist ─────────────────────────────────────────────────────────────────

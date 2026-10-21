@@ -126,6 +126,7 @@ export async function getScholarship(id: string): Promise<Scholarship> {
 
 export async function createScholarship(
   data: Omit<Scholarship, "id" | "checklist">,
+  checklistItems: readonly string[] = DEFAULT_SCHOLARSHIP_CHECKLIST_ITEMS,
 ): Promise<Scholarship> {
   const userId = await requireUserId();
 
@@ -149,21 +150,31 @@ export async function createScholarship(
 
   if (error) throw new Error(parseSupabaseError(error));
 
-  // Link universities
-  if (data.eligibleUniversities.length > 0) {
-    await setScholarshipUniversities(schol.id, data.eligibleUniversities);
-  }
+  // Link universities and add the checklist: the defaults unless the caller
+  // supplies its own items (an empty list means no checklist). If either step
+  // fails, remove the new scholarship (its links and checklist cascade) so the
+  // caller never ends up with a half-built record.
+  try {
+    if (data.eligibleUniversities.length > 0) {
+      await setScholarshipUniversities(schol.id, data.eligibleUniversities);
+    }
 
-  // Add default checklist items
-  if (DEFAULT_SCHOLARSHIP_CHECKLIST_ITEMS.length > 0) {
-    await supabase.from("scholarship_checklist").insert(
-      DEFAULT_SCHOLARSHIP_CHECKLIST_ITEMS.map((item, index) => ({
-        scholarship_id: schol.id,
-        item,
-        completed: false,
-        sort_order: index,
-      })),
-    );
+    if (checklistItems.length > 0) {
+      const { error: checklistError } = await supabase
+        .from("scholarship_checklist")
+        .insert(
+          checklistItems.map((item, index) => ({
+            scholarship_id: schol.id,
+            item,
+            completed: false,
+            sort_order: index,
+          })),
+        );
+      if (checklistError) throw new Error(parseSupabaseError(checklistError));
+    }
+  } catch (e) {
+    await supabase.from("scholarships").delete().eq("id", schol.id);
+    throw e;
   }
 
   return getScholarship(schol.id);
@@ -272,36 +283,24 @@ export async function importScholarships(
 
   for (const row of rows) {
     try {
-      const schol = await createScholarship({
-        cycleId: row.cycleId,
-        name: row.name,
-        status: row.status,
-        amount: row.amount,
-        currency: row.currency,
-        coverage: row.coverage,
-        notes: row.notes,
-        link: row.link,
-        startDate: row.startDate,
-        deadline: row.deadline,
-        eligibleUniversities: [],
-      });
-
-      // createScholarship seeds the default checklist; replace it with the
-      // imported checklist items (if any) so the import reflects exactly
+      // Pass the imported checklist items so the import reflects exactly
       // what was in the spreadsheet rather than a generic template.
-      await Promise.all(
-        schol.checklist.map((item) => deleteScholarshipChecklistItem(item.id)),
+      await createScholarship(
+        {
+          cycleId: row.cycleId,
+          name: row.name,
+          status: row.status,
+          amount: row.amount,
+          currency: row.currency,
+          coverage: row.coverage,
+          notes: row.notes,
+          link: row.link,
+          startDate: row.startDate,
+          deadline: row.deadline,
+          eligibleUniversities: [],
+        },
+        row.checklistItems,
       );
-      if (row.checklistItems.length > 0) {
-        await supabase.from("scholarship_checklist").insert(
-          row.checklistItems.map((item, index) => ({
-            scholarship_id: schol.id,
-            item,
-            completed: false,
-            sort_order: index,
-          })),
-        );
-      }
 
       created++;
     } catch (e) {
@@ -327,38 +326,24 @@ export async function duplicateScholarship(
 ): Promise<Scholarship> {
   const source = await getScholarship(id);
 
-  const created = await createScholarship({
-    cycleId: targetCycleId,
-    name: source.name,
-    status: "not-started",
-    amount: source.amount,
-    currency: source.currency,
-    coverage: source.coverage,
-    notes: source.notes ?? "",
-    link: source.link ?? "",
-    startDate: source.startDate ?? null,
-    deadline: source.deadline ?? null,
-    eligibleUniversities: [],
-  });
-
-  // createScholarship already seeded the default checklist items; remove
-  // them and replace with an exact copy of the source's checklist so the
-  // duplicate mirrors the original rather than a generic template.
-  await Promise.all(
-    created.checklist.map((item) => deleteScholarshipChecklistItem(item.id)),
+  // Pass the source's checklist so the duplicate mirrors the original
+  // rather than a generic template.
+  return createScholarship(
+    {
+      cycleId: targetCycleId,
+      name: source.name,
+      status: "not-started",
+      amount: source.amount,
+      currency: source.currency,
+      coverage: source.coverage,
+      notes: source.notes ?? "",
+      link: source.link ?? "",
+      startDate: source.startDate ?? null,
+      deadline: source.deadline ?? null,
+      eligibleUniversities: [],
+    },
+    source.checklist.map((item) => item.item),
   );
-  if (source.checklist.length > 0) {
-    await supabase.from("scholarship_checklist").insert(
-      source.checklist.map((item, index) => ({
-        scholarship_id: created.id,
-        item: item.item,
-        completed: false,
-        sort_order: index,
-      })),
-    );
-  }
-
-  return getScholarship(created.id);
 }
 
 // ── University Links ──────────────────────────────────────────────────────────
@@ -367,22 +352,38 @@ export async function setScholarshipUniversities(
   scholarshipId: string,
   universityIds: string[],
 ): Promise<void> {
-  // Delete all existing links
-  await supabase
+  const wanted = new Set(universityIds);
+
+  const { data: existing, error: readError } = await supabase
     .from("scholarship_universities")
-    .delete()
+    .select("university_id")
     .eq("scholarship_id", scholarshipId);
+  if (readError) throw new Error(parseSupabaseError(readError));
 
-  if (universityIds.length === 0) return;
+  const current = new Set((existing ?? []).map((row) => row.university_id));
+  const toAdd = [...wanted].filter((uid) => !current.has(uid));
+  const toRemove = [...current].filter((uid) => !wanted.has(uid));
 
-  const { error } = await supabase.from("scholarship_universities").insert(
-    universityIds.map((uid) => ({
-      scholarship_id: scholarshipId,
-      university_id: uid,
-    })),
-  );
+  // Add the new links before removing the stale ones, so a failure part way
+  // can never leave the scholarship with fewer links than it started with.
+  if (toAdd.length > 0) {
+    const { error } = await supabase.from("scholarship_universities").insert(
+      toAdd.map((uid) => ({
+        scholarship_id: scholarshipId,
+        university_id: uid,
+      })),
+    );
+    if (error) throw new Error(parseSupabaseError(error));
+  }
 
-  if (error) throw new Error(parseSupabaseError(error));
+  if (toRemove.length > 0) {
+    const { error } = await supabase
+      .from("scholarship_universities")
+      .delete()
+      .eq("scholarship_id", scholarshipId)
+      .in("university_id", toRemove);
+    if (error) throw new Error(parseSupabaseError(error));
+  }
 }
 
 // ── Checklist ─────────────────────────────────────────────────────────────────

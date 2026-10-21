@@ -50,6 +50,40 @@ export async function getActiveCycle(): Promise<ApplicationCycle | null> {
   return row ? rowToCycle(row) : null;
 }
 
+/**
+ * Deactivates the user's current active cycle (if any) and returns its id so
+ * the caller can restore it if the follow-up step fails. The unique
+ * one-active-cycle-per-user index forces this to happen before the new
+ * cycle can be activated.
+ */
+async function deactivateActiveCycle(userId: string): Promise<string | null> {
+  const { data: active, error: readError } = await supabase
+    .from("application_cycles")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("is_active", true)
+    .maybeSingle();
+  if (readError) throw new Error(parseSupabaseError(readError));
+  if (!active) return null;
+
+  const { error } = await supabase
+    .from("application_cycles")
+    .update({ is_active: false })
+    .eq("id", active.id);
+  if (error) throw new Error(parseSupabaseError(error));
+
+  return active.id;
+}
+
+/** Best-effort restore of a cycle deactivated by deactivateActiveCycle. */
+async function restoreActiveCycle(id: string | null): Promise<void> {
+  if (!id) return;
+  await supabase
+    .from("application_cycles")
+    .update({ is_active: true })
+    .eq("id", id);
+}
+
 export async function createCycle(
   data: Omit<ApplicationCycle, "id" | "createdAt" | "isArchived"> & {
     isArchived?: boolean;
@@ -59,13 +93,10 @@ export async function createCycle(
 
   // If this new cycle is being created as active, deactivate any existing
   // active cycle first so the one-active-cycle-per-user constraint holds.
-  if (data.isActive) {
-    await supabase
-      .from("application_cycles")
-      .update({ is_active: false })
-      .eq("user_id", userId)
-      .eq("is_active", true);
-  }
+  // If the insert then fails, the previous active cycle is restored.
+  const previousActiveId = data.isActive
+    ? await deactivateActiveCycle(userId)
+    : null;
 
   const { data: row, error } = await supabase
     .from("application_cycles")
@@ -81,7 +112,10 @@ export async function createCycle(
     .select()
     .single();
 
-  if (error) throw new Error(parseSupabaseError(error));
+  if (error) {
+    await restoreActiveCycle(previousActiveId);
+    throw new Error(parseSupabaseError(error));
+  }
   return rowToCycle(row);
 }
 
@@ -117,23 +151,20 @@ export async function setActiveCycle(
 ): Promise<void> {
   const userId = await requireUserId();
 
-  if (isActive) {
-    // Deactivate the current active cycle (if any), then activate this one.
-    const { error: deactivateError } = await supabase
-      .from("application_cycles")
-      .update({ is_active: false })
-      .eq("user_id", userId)
-      .eq("is_active", true);
-
-    if (deactivateError) throw new Error(parseSupabaseError(deactivateError));
-  }
+  // Deactivate the current active cycle (if any), then activate this one.
+  // If activation fails, the previous active cycle is restored so the user
+  // is never left with no active cycle.
+  const previousActiveId = isActive ? await deactivateActiveCycle(userId) : null;
 
   const { error } = await supabase
     .from("application_cycles")
     .update({ is_active: isActive })
     .eq("id", id);
 
-  if (error) throw new Error(parseSupabaseError(error));
+  if (error) {
+    await restoreActiveCycle(previousActiveId);
+    throw new Error(parseSupabaseError(error));
+  }
 }
 
 export async function archiveCycle(id: string): Promise<void> {
