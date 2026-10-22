@@ -71,6 +71,7 @@ import {
   logUniversityAmountChange,
   getUniversityAmountHistory,
 } from "../../services/amountHistory";
+import { Pagination } from "../components/Pagination";
 
 const REGIONS = [
   "North America",
@@ -1833,79 +1834,14 @@ export function Universities() {
             </div>
 
             {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="hidden sm:flex items-center justify-between mt-4">
-                <p className="text-xs text-muted-foreground tabular-nums">
-                  Showing {(page - 1) * PAGE_SIZE + 1}–
-                  {Math.min(page * PAGE_SIZE, sorted.length)} of {sorted.length}
-                </p>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setPage(1)}
-                    disabled={page === 1}
-                    aria-label="First page"
-                    className="h-8 w-8 flex items-center justify-center rounded-md border border-border text-sm disabled:opacity-40 hover:bg-accent transition-colors"
-                  >
-                    «
-                  </button>
-                  <button
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                    aria-label="Previous page"
-                    className="h-8 w-8 flex items-center justify-center rounded-md border border-border text-sm disabled:opacity-40 hover:bg-accent transition-colors"
-                  >
-                    ‹
-                  </button>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1)
-                    .filter(
-                      (p) =>
-                        p === 1 || p === totalPages || Math.abs(p - page) <= 1,
-                    )
-                    .reduce<(number | "…")[]>((acc, p, idx, arr) => {
-                      if (idx > 0 && p - (arr[idx - 1] as number) > 1)
-                        acc.push("…");
-                      acc.push(p);
-                      return acc;
-                    }, [])
-                    .map((p, i) =>
-                      p === "…" ? (
-                        <span
-                          key={`ellipsis-${i}`}
-                          className="h-8 w-8 flex items-center justify-center text-sm text-muted-foreground"
-                        >
-                          …
-                        </span>
-                      ) : (
-                        <button
-                          key={p}
-                          onClick={() => setPage(p as number)}
-                          aria-label={`Page ${p}`}
-                          aria-current={page === p ? "page" : undefined}
-                          className={`h-8 w-8 flex items-center justify-center rounded-md border text-sm transition-colors ${page === p ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-accent"}`}
-                        >
-                          {p}
-                        </button>
-                      ),
-                    )}
-                  <button
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={page === totalPages}
-                    aria-label="Next page"
-                    className="h-8 w-8 flex items-center justify-center rounded-md border border-border text-sm disabled:opacity-40 hover:bg-accent transition-colors"
-                  >
-                    ›
-                  </button>
-                  <button
-                    onClick={() => setPage(totalPages)}
-                    disabled={page === totalPages}
-                    aria-label="Last page"
-                    className="h-8 w-8 flex items-center justify-center rounded-md border border-border text-sm disabled:opacity-40 hover:bg-accent transition-colors"
-                  >
-                    »
-                  </button>
-                </div>
-              </div>
-            )}
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              pageSize={PAGE_SIZE}
+              totalItems={sorted.length}
+              onPageChange={setPage}
+              className="hidden sm:flex mt-4"
+            />
           </>
         )}
 
