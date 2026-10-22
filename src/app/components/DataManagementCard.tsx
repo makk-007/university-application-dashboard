@@ -32,6 +32,7 @@ import {
   ParsedUniversityRow,
   ParsedScholarshipRow,
 } from "../utils/dataImport";
+import { getErrorMessage } from "../../services/errors";
 
 type ImportKind = "universities" | "scholarships";
 
@@ -57,8 +58,8 @@ export function DataManagementCard() {
         scholarships,
       });
       toast.success("Backup exported");
-    } catch (e: any) {
-      toast.error("Failed to export backup", { description: e.message });
+    } catch (e) {
+      toast.error("Failed to export backup", { description: getErrorMessage(e) });
     } finally {
       setExporting(null);
     }
@@ -70,8 +71,8 @@ export function DataManagementCard() {
       const universities = await getUniversities();
       exportUniversitiesToCsv(universities, cycles);
       toast.success("Universities exported");
-    } catch (e: any) {
-      toast.error("Failed to export universities", { description: e.message });
+    } catch (e) {
+      toast.error("Failed to export universities", { description: getErrorMessage(e) });
     } finally {
       setExporting(null);
     }
@@ -83,8 +84,8 @@ export function DataManagementCard() {
       const scholarships = await getScholarships();
       exportScholarshipsToCsv(scholarships, cycles);
       toast.success("Scholarships exported");
-    } catch (e: any) {
-      toast.error("Failed to export scholarships", { description: e.message });
+    } catch (e) {
+      toast.error("Failed to export scholarships", { description: getErrorMessage(e) });
     } finally {
       setExporting(null);
     }
@@ -280,8 +281,8 @@ function ImportPreviewModal({
         );
         setResult(res);
       }
-    } catch (e: any) {
-      toast.error("Import failed", { description: e.message });
+    } catch (e) {
+      toast.error("Import failed", { description: getErrorMessage(e) });
     } finally {
       setImporting(false);
     }

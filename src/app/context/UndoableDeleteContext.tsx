@@ -87,12 +87,12 @@ export function UndoableDeleteProvider({ children }: { children: ReactNode }) {
       timers.current.delete(id);
       try {
         await performDelete();
-      } catch (e: any) {
+      } catch (e) {
         // The optimistic removal already happened; surface the failure
         // and restore the item rather than leaving the UI in a state
         // that disagrees with the database.
         onRestoreLocally();
-        onDeleteFailed?.(e);
+        onDeleteFailed?.(e instanceof Error ? e : new Error(String(e)));
         toast.dismiss(toastId);
       }
     }, duration);

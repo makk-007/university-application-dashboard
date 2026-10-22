@@ -4,6 +4,7 @@ import { Copy, X, AlertCircle, Loader2 } from "lucide-react";
 import { ApplicationCycle } from "../types";
 import { useEscapeKey } from "../hooks/useEscapeKey";
 import { selectCls } from "./ui/input-classes";
+import { getErrorMessage } from "../../services/errors";
 
 interface DuplicateToCycleModalProps {
   /** Description of what's being duplicated, e.g. an item name or "3 universities". */
@@ -39,8 +40,8 @@ export function DuplicateToCycleModal({
     setError(null);
     try {
       await onConfirm(targetCycleId);
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e) {
+      setError(getErrorMessage(e));
       setSaving(false);
     }
   };

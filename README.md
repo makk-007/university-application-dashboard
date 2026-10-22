@@ -62,6 +62,18 @@ Output is written to `dist/`, ready to deploy to any static host (Vercel, Netlif
 
 ---
 
+### 7. Quality Checks
+
+```bash
+npm run typecheck   # TypeScript, strict mode
+npm run lint        # ESLint (errors fail CI; warnings are tracked)
+npm run build       # Production build (needs the VITE_SUPABASE_* variables)
+```
+
+The same checks run on every push to `main` and on pull requests through GitHub Actions (`.github/workflows/ci.yml`).
+
+---
+
 ## Project Structure
 
 ```

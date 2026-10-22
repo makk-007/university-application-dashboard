@@ -8,6 +8,7 @@ import {
 } from "../../services/cycles";
 import { useEscapeKey } from "../hooks/useEscapeKey";
 import { selectCls } from "./ui/input-classes";
+import { getErrorMessage } from "../../services/errors";
 
 interface DuplicateCycleModalProps {
   sourceCycle: ApplicationCycle;
@@ -38,8 +39,8 @@ export function DuplicateCycleModal({
     try {
       const res = await duplicateCycleContents(sourceCycle.id, targetCycleId);
       setResult(res);
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e) {
+      setError(getErrorMessage(e));
     } finally {
       setSaving(false);
     }
