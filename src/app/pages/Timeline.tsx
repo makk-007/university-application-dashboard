@@ -43,7 +43,10 @@ function TimelineView({
   const today = new Date();
 
   const timelineData = useMemo(() => {
-    if (items.length === 0) return { minDate: today, maxDate: today };
+    if (items.length === 0) {
+      const now = new Date();
+      return { minDate: now, maxDate: now };
+    }
     const allDates = items.flatMap((i) => [
       new Date(i.startDate!),
       new Date(i.deadline!),
@@ -76,29 +79,27 @@ function TimelineView({
   const todayPercent =
     ((today.getTime() - timelineData.minDate.getTime()) / rangeMs) * 100;
 
-  const upcomingDeadlines = useMemo(
-    () =>
-      allItems
-        .filter((i) => i.deadline && new Date(i.deadline) > today)
-        .sort(
-          (a, b) =>
-            new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime(),
-        )
-        .slice(0, 5),
-    [allItems],
-  );
+  const upcomingDeadlines = useMemo(() => {
+    const now = new Date();
+    return allItems
+      .filter((i) => i.deadline && new Date(i.deadline) > now)
+      .sort(
+        (a, b) =>
+          new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime(),
+      )
+      .slice(0, 5);
+  }, [allItems]);
 
-  const pastDeadlines = useMemo(
-    () =>
-      allItems
-        .filter((i) => i.deadline && new Date(i.deadline) <= today)
-        .sort(
-          (a, b) =>
-            new Date(b.deadline!).getTime() - new Date(a.deadline!).getTime(),
-        )
-        .slice(0, 5),
-    [allItems],
-  );
+  const pastDeadlines = useMemo(() => {
+    const now = new Date();
+    return allItems
+      .filter((i) => i.deadline && new Date(i.deadline) <= now)
+      .sort(
+        (a, b) =>
+          new Date(b.deadline!).getTime() - new Date(a.deadline!).getTime(),
+      )
+      .slice(0, 5);
+  }, [allItems]);
 
   if (items.length === 0) {
     return (
@@ -379,6 +380,7 @@ export function Timeline() {
 
   useEffect(() => {
     if (cyclesLoading) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on mount: load() sets state when the data arrives
     load();
   }, [load, cyclesLoading]);
 
