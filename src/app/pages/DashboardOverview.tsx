@@ -125,6 +125,7 @@ export function DashboardOverview() {
   }, [selectedCycleId]);
   useEffect(() => {
     if (cyclesLoading) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on mount: load() sets state when the data arrives
     load();
   }, [load, cyclesLoading]);
 

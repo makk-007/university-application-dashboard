@@ -86,6 +86,7 @@ export function CycleProvider({ children }: { children: ReactNode }) {
   }, [user, authLoading]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on mount: refresh() loads cycles and sets state when the data arrives
     refresh();
   }, [refresh]);
 

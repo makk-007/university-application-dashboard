@@ -96,6 +96,89 @@ interface FundingTooltipProps {
   label?: string | number;
 }
 
+// Stable color assignment per scholarship (applied by index in
+// scholarshipColorById below).
+const FUNDING_CHART_COLORS = [
+  "#1C96C1",
+  "#F59E0B",
+  "#10B981",
+  "#8B5CF6",
+  "#EF4444",
+  "#EC4899",
+  "#14B8A6",
+  "#F97316",
+  "#6366F1",
+  "#84CC16",
+];
+
+function FundingBreakdownTooltip({
+  active,
+  payload,
+  label,
+  scholarshipById,
+}: FundingTooltipProps & { scholarshipById: Map<string, Scholarship> }) {
+  if (!active || !payload || payload.length === 0) return null;
+  const row = payload[0]?.payload;
+  return (
+    <div
+      className="rounded-md border px-3 py-2 text-sm"
+      style={{
+        backgroundColor: "var(--popover)",
+        color: "var(--popover-foreground)",
+        borderColor: "var(--border)",
+      }}
+    >
+      <p className="font-medium mb-1">{row?.fullName ?? label}</p>
+      {payload
+        .filter((p) => Number(p.value) > 0)
+        .map((p) => {
+          const schol = scholarshipById.get(String(p.dataKey));
+          if (!schol) return null;
+          return (
+            <div key={String(p.dataKey)} className="flex items-center gap-1.5 py-0.5">
+              <span
+                className="inline-block size-2.5 rounded-sm shrink-0"
+                style={{ backgroundColor: p.fill }}
+              />
+              <span>
+                {schol.name}: GHS {Number(p.value).toLocaleString()} (
+                {schol.coverage})
+              </span>
+            </div>
+          );
+        })}
+    </div>
+  );
+}
+
+function FundingBreakdownLegend({
+  chartedScholarshipIds,
+  scholarshipById,
+  scholarshipColorById,
+}: {
+  chartedScholarshipIds: string[];
+  scholarshipById: Map<string, Scholarship>;
+  scholarshipColorById: Map<string, string>;
+}) {
+  return (
+    <div className="flex flex-wrap gap-3 mt-3 justify-center">
+      {chartedScholarshipIds.map((id) => {
+        const schol = scholarshipById.get(id);
+        if (!schol) return null;
+        return (
+          <div key={id} className="flex items-center gap-1.5 text-xs">
+            <span
+              className="inline-block size-2.5 rounded-sm shrink-0"
+              style={{ backgroundColor: scholarshipColorById.get(id) }}
+            />
+            <span className="text-muted-foreground">{schol.name}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 const COVERAGE_OPTIONS = [
   "Full Scholarship",
   "Tuition Only",
@@ -486,22 +569,6 @@ function ScholarshipDetailDrawer({
   const unisDirty =
     JSON.stringify([...pendingUnis].sort()) !==
     JSON.stringify([...s.eligibleUniversities].sort());
-
-  useEffect(() => {
-    setS(scholarship);
-    setNotes(scholarship.notes ?? "");
-    setEditCoverage(scholarship.coverage);
-    setEditAmount(String(scholarship.amount ?? 0));
-    setEditCurrency(scholarship.currency ?? "GHS");
-    setEditStartDate(scholarship.startDate ?? "");
-    setEditDeadline(scholarship.deadline ?? "");
-    setEditLink(scholarship.link ?? "");
-    setLinkError(null);
-    setEditingName(false);
-    setEditName(scholarship.name);
-    setNameError(null);
-    setPendingUnis(scholarship.eligibleUniversities);
-  }, [scholarship.id]);
 
   const saveField = async (field: string, value: unknown) => {
     setSavingField(field);
@@ -1343,6 +1410,7 @@ export function Scholarships() {
   }, [selectedCycleId]);
   useEffect(() => {
     if (cyclesLoading) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on mount: load() sets state when the data arrives
     load();
   }, [load, cyclesLoading]);
 
@@ -1353,7 +1421,9 @@ export function Scholarships() {
   // open it once its data has loaded.
   useEffect(() => {
     if (pendingOpenId) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- closing the drawer is a reaction to the cycle changing
     setSelected(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- pendingOpenId is intentionally omitted: this must run only when the cycle changes, not when a pending duplicate is cleared
   }, [selectedCycleId]);
 
   // Once the destination cycle's scholarships have loaded, open the
@@ -1362,6 +1432,7 @@ export function Scholarships() {
     if (!pendingOpenId || loading) return;
     const match = scholarships.find((s) => s.id === pendingOpenId);
     if (match) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- opens the duplicate once its cycle's data has loaded
       setSelected(match);
       setPendingOpenId(null);
     }
@@ -1411,9 +1482,7 @@ export function Scholarships() {
   // If deleting (individually or in bulk) removes enough rows that the
   // current page no longer exists, fall back to the new last page rather
   // than showing an empty page with pagination controls pointing nowhere.
-  useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
-  }, [page, totalPages]);
+  if (page > totalPages) setPage(totalPages);
 
   const allOnPageSelected =
     paginated.length > 0 && paginated.every((s) => selectedIds.has(s.id));
@@ -1443,16 +1512,23 @@ export function Scholarships() {
     selectedIds.has(s.id),
   );
 
-  useEffect(() => {
-    setPage(1);
-    setSelectedIds(new Set());
-  }, [
+  // Go back to the first page and clear the selection whenever the filters or
+  // the viewed cycle change. Done during render (React's "adjust state when
+  // inputs change" pattern) rather than in an effect, so there is no extra
+  // render with stale pagination.
+  const filterKey = JSON.stringify([
     searchQuery,
     statusFilter,
     coverageFilter,
     universityFilter,
     selectedCycleId,
   ]);
+  const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
+  if (filterKey !== prevFilterKey) {
+    setPrevFilterKey(filterKey);
+    setPage(1);
+    setSelectedIds(new Set());
+  }
 
   const fundingData = useMemo(
     () =>
@@ -1485,18 +1561,6 @@ export function Scholarships() {
 
   // Stable color assignment per scholarship, keyed by id so a given
   // scholarship always gets the same color across renders and sorts.
-  const FUNDING_CHART_COLORS = [
-    "#1C96C1",
-    "#F59E0B",
-    "#10B981",
-    "#8B5CF6",
-    "#EF4444",
-    "#EC4899",
-    "#14B8A6",
-    "#F97316",
-    "#6366F1",
-    "#84CC16",
-  ];
   const scholarshipColorById = useMemo(() => {
     const map = new Map<string, string>();
     scholarships.forEach((s, i) => {
@@ -1549,65 +1613,6 @@ export function Scholarships() {
     );
     return Array.from(ids);
   }, [scholarshipFundingBreakdown]);
-
-  function FundingBreakdownTooltip({
-    active,
-    payload,
-    label,
-  }: FundingTooltipProps) {
-    if (!active || !payload || payload.length === 0) return null;
-    const row = payload[0]?.payload;
-    return (
-      <div
-        className="rounded-md border px-3 py-2 text-sm"
-        style={{
-          backgroundColor: "var(--popover)",
-          color: "var(--popover-foreground)",
-          borderColor: "var(--border)",
-        }}
-      >
-        <p className="font-medium mb-1">{row?.fullName ?? label}</p>
-        {payload
-          .filter((p) => Number(p.value) > 0)
-          .map((p) => {
-            const schol = scholarshipById.get(String(p.dataKey));
-            if (!schol) return null;
-            return (
-              <div key={String(p.dataKey)} className="flex items-center gap-1.5 py-0.5">
-                <span
-                  className="inline-block size-2.5 rounded-sm shrink-0"
-                  style={{ backgroundColor: p.fill }}
-                />
-                <span>
-                  {schol.name}: GHS {Number(p.value).toLocaleString()} (
-                  {schol.coverage})
-                </span>
-              </div>
-            );
-          })}
-      </div>
-    );
-  }
-
-  function FundingBreakdownLegend() {
-    return (
-      <div className="flex flex-wrap gap-3 mt-3 justify-center">
-        {chartedScholarshipIds.map((id) => {
-          const schol = scholarshipById.get(id);
-          if (!schol) return null;
-          return (
-            <div key={id} className="flex items-center gap-1.5 text-xs">
-              <span
-                className="inline-block size-2.5 rounded-sm shrink-0"
-                style={{ backgroundColor: scholarshipColorById.get(id) }}
-              />
-              <span className="text-muted-foreground">{schol.name}</span>
-            </div>
-          );
-        })}
-      </div>
-    );
-  }
 
   const handleUpdated = (updated: Scholarship) => {
     setScholarships((prev) =>
@@ -2337,7 +2342,13 @@ export function Scholarships() {
                             tick={{ fontSize: 11 }}
                             width={150}
                           />
-                          <Tooltip content={<FundingBreakdownTooltip />} />
+                          <Tooltip
+                            content={
+                              <FundingBreakdownTooltip
+                                scholarshipById={scholarshipById}
+                              />
+                            }
+                          />
                           {chartedScholarshipIds.map((id, i) => (
                             <Bar
                               key={id}
@@ -2353,7 +2364,11 @@ export function Scholarships() {
                           ))}
                         </BarChart>
                       </ResponsiveContainer>
-                      <FundingBreakdownLegend />
+                      <FundingBreakdownLegend
+                        chartedScholarshipIds={chartedScholarshipIds}
+                        scholarshipById={scholarshipById}
+                        scholarshipColorById={scholarshipColorById}
+                      />
                     </>
                   )}
                 </div>

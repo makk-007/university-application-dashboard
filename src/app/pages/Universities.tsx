@@ -425,21 +425,6 @@ function UniversityDetailDrawer({
   const [editName, setEditName] = useState(university.name);
   const [nameError, setNameError] = useState<string | null>(null);
 
-  useEffect(() => {
-    setUni(university);
-    setNotes(university.notes ?? "");
-    setEditRegion(university.region);
-    setEditTuition(String(university.tuition ?? 0));
-    setEditCurrency(university.currency ?? "USD");
-    setEditStartDate(university.startDate ?? "");
-    setEditDeadline(university.deadline ?? "");
-    setEditLink(university.applicationLink ?? "");
-    setLinkError(null);
-    setEditingName(false);
-    setEditName(university.name);
-    setNameError(null);
-  }, [university.id]);
-
   const saveField = async (field: string, value: unknown) => {
     setSavingField(field);
     const previousTuition = uni.tuition;
@@ -1235,6 +1220,7 @@ export function Universities() {
 
   useEffect(() => {
     if (cyclesLoading) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on mount: load() sets state when the data arrives
     load();
   }, [load, cyclesLoading]);
 
@@ -1245,7 +1231,9 @@ export function Universities() {
   // open it once its data has loaded.
   useEffect(() => {
     if (pendingOpenId) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- closing the drawer is a reaction to the cycle changing
     setSelectedUni(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- pendingOpenId is intentionally omitted: this must run only when the cycle changes, not when a pending duplicate is cleared
   }, [selectedCycleId]);
 
   // Once the destination cycle's universities have loaded, open the
@@ -1254,6 +1242,7 @@ export function Universities() {
     if (!pendingOpenId || loading) return;
     const match = universities.find((u) => u.id === pendingOpenId);
     if (match) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- opens the duplicate once its cycle's data has loaded
       setSelectedUni(match);
       setPendingOpenId(null);
     }
@@ -1264,10 +1253,22 @@ export function Universities() {
     [universities],
   );
 
-  useEffect(() => {
+  // Go back to the first page and clear the selection whenever the filters or
+  // the viewed cycle change. Done during render (React's "adjust state when
+  // inputs change" pattern) rather than in an effect, so there is no extra
+  // render with stale pagination.
+  const filterKey = JSON.stringify([
+    searchQuery,
+    statusFilter,
+    regionFilter,
+    selectedCycleId,
+  ]);
+  const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
+  if (filterKey !== prevFilterKey) {
+    setPrevFilterKey(filterKey);
     setPage(1);
     setSelectedIds(new Set());
-  }, [searchQuery, statusFilter, regionFilter, selectedCycleId]);
+  }
 
   const filtered = useMemo(
     () =>
@@ -1313,9 +1314,7 @@ export function Universities() {
   // If deleting (individually or in bulk) removes enough rows that the
   // current page no longer exists, fall back to the new last page rather
   // than showing an empty page with pagination controls pointing nowhere.
-  useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
-  }, [page, totalPages]);
+  if (page > totalPages) setPage(totalPages);
 
   const allOnPageSelected =
     paginated.length > 0 && paginated.every((u) => selectedIds.has(u.id));

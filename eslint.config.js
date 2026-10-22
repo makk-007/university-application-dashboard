@@ -15,12 +15,11 @@ export default tseslint.config(
     plugins: { "react-hooks": reactHooks },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      // Newer React-compiler-style rules and the deps check are kept as
-      // warnings: they flag patterns worth reviewing, but fixing them means
-      // restructuring components, so they do not fail the build yet.
-      "react-hooks/set-state-in-effect": "warn",
-      "react-hooks/static-components": "warn",
-      "react-hooks/exhaustive-deps": "warn",
+      // Remaining intentional exceptions carry an inline disable comment
+      // explaining why; anything new fails the build.
+      "react-hooks/set-state-in-effect": "error",
+      "react-hooks/static-components": "error",
+      "react-hooks/exhaustive-deps": "error",
     },
   },
 );
