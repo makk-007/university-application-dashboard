@@ -60,7 +60,7 @@ import {
   setScholarshipUniversities,
 } from "../../services/scholarships";
 import { getUniversities } from "../../services/universities";
-import { ConflictError } from "../../services/errors";
+import { ConflictError, getErrorMessage } from "../../services/errors";
 import {
   logScholarshipStatusChange,
   getScholarshipStatusHistory,
@@ -83,6 +83,18 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
+
+// Minimal shape of what Recharts passes to the funding-breakdown tooltip.
+interface FundingTooltipProps {
+  active?: boolean;
+  payload?: {
+    dataKey?: string | number;
+    value?: number | string;
+    fill?: string;
+    payload?: { fullName?: string };
+  }[];
+  label?: string | number;
+}
 
 const COVERAGE_OPTIONS = [
   "Full Scholarship",
@@ -120,7 +132,7 @@ function AddScholarshipModal({
   const [fieldWarnings, setFieldWarnings] = useState<Record<string, string>>(
     {},
   );
-  const set = (k: string, v: any) => {
+  const set = (k: string, v: unknown) => {
     setForm((f) => ({ ...f, [k]: v }));
     setFieldErrors((fe) => {
       const n = { ...fe };
@@ -184,9 +196,9 @@ function AddScholarshipModal({
       toast.success("Scholarship added", { description: form.name.trim() });
       onSaved();
       onClose();
-    } catch (e: any) {
-      setError(e.message);
-      toast.error("Failed to add scholarship", { description: e.message });
+    } catch (e) {
+      setError(getErrorMessage(e));
+      toast.error("Failed to add scholarship", { description: getErrorMessage(e) });
     } finally {
       setSaving(false);
     }
@@ -491,7 +503,7 @@ function ScholarshipDetailDrawer({
     setPendingUnis(scholarship.eligibleUniversities);
   }, [scholarship.id]);
 
-  const saveField = async (field: string, value: any) => {
+  const saveField = async (field: string, value: unknown) => {
     setSavingField(field);
     const previousAmount = s.amount;
     try {
@@ -518,14 +530,14 @@ function ScholarshipDetailDrawer({
           updated.currency,
         );
       }
-    } catch (e: any) {
+    } catch (e) {
       if (e instanceof ConflictError) {
         toast.error("Couldn't save", {
           description: e.message,
           action: { label: "Reload", onClick: onClose },
         });
       } else {
-        toast.error("Failed to save", { description: e.message });
+        toast.error("Failed to save", { description: getErrorMessage(e) });
       }
     } finally {
       setSavingField(null);
@@ -551,14 +563,14 @@ function ScholarshipDetailDrawer({
         description: statusConfig[status].label,
       });
       logScholarshipStatusChange(s.id, previousStatus, status);
-    } catch (e: any) {
+    } catch (e) {
       if (e instanceof ConflictError) {
         toast.error("Couldn't update status", {
           description: e.message,
           action: { label: "Reload", onClick: onClose },
         });
       } else {
-        toast.error("Failed to update status", { description: e.message });
+        toast.error("Failed to update status", { description: getErrorMessage(e) });
       }
     } finally {
       setSavingStatus(false);
@@ -590,14 +602,14 @@ function ScholarshipDetailDrawer({
         };
         setS(updated);
         onUpdated(updated);
-      } catch (e: any) {
+      } catch (e) {
         if (e instanceof ConflictError) {
           toast.error("Couldn't save notes", {
             description: e.message,
             action: { label: "Reload", onClick: onClose },
           });
         } else {
-          toast.error("Failed to save notes", { description: e.message });
+          toast.error("Failed to save notes", { description: getErrorMessage(e) });
         }
       } finally {
         setSavingNotes(false);
@@ -619,8 +631,8 @@ function ScholarshipDetailDrawer({
       setS(updated);
       onUpdated(updated);
       toast.success("Eligible universities saved");
-    } catch (e: any) {
-      toast.error("Failed to update universities", { description: e.message });
+    } catch (e) {
+      toast.error("Failed to update universities", { description: getErrorMessage(e) });
     } finally {
       setSavingUnis(false);
     }
@@ -660,8 +672,8 @@ function ScholarshipDetailDrawer({
       };
       setS(updated);
       onUpdated(updated);
-    } catch (e: any) {
-      toast.error("Failed to update checklist", { description: e.message });
+    } catch (e) {
+      toast.error("Failed to update checklist", { description: getErrorMessage(e) });
     }
   };
   const handleAddCheck = async () => {
@@ -673,8 +685,8 @@ function ScholarshipDetailDrawer({
       onUpdated(updated);
       setNewCheckItem("");
       toast.success("Requirement added");
-    } catch (e: any) {
-      toast.error("Failed to add requirement", { description: e.message });
+    } catch (e) {
+      toast.error("Failed to add requirement", { description: getErrorMessage(e) });
     }
   };
   const handleDeleteCheck = (itemId: string) => {
@@ -724,10 +736,10 @@ function ScholarshipDetailDrawer({
     onUpdated(updated);
     try {
       await renameScholarshipChecklistItem(itemId, trimmed);
-    } catch (e: any) {
+    } catch (e) {
       setS({ ...s, checklist: beforeChecklist });
       onUpdated({ ...s, checklist: beforeChecklist });
-      toast.error("Failed to rename requirement", { description: e.message });
+      toast.error("Failed to rename requirement", { description: getErrorMessage(e) });
     }
   };
 
@@ -738,11 +750,11 @@ function ScholarshipDetailDrawer({
     onUpdated(updated);
     try {
       await reorderScholarshipChecklistItems(reordered.map((c) => c.id));
-    } catch (e: any) {
+    } catch (e) {
       setS({ ...s, checklist: beforeChecklist });
       onUpdated({ ...s, checklist: beforeChecklist });
       toast.error("Failed to reorder requirements", {
-        description: e.message,
+        description: getErrorMessage(e),
       });
     }
   };
@@ -1322,9 +1334,9 @@ export function Scholarships() {
       ]);
       setScholarships(schols);
       setUniversities(unis);
-    } catch (e: any) {
-      setError(e.message);
-      toast.error("Failed to load scholarships", { description: e.message });
+    } catch (e) {
+      setError(getErrorMessage(e));
+      toast.error("Failed to load scholarships", { description: getErrorMessage(e) });
     } finally {
       setLoading(false);
     }
@@ -1538,7 +1550,11 @@ export function Scholarships() {
     return Array.from(ids);
   }, [scholarshipFundingBreakdown]);
 
-  function FundingBreakdownTooltip({ active, payload, label }: any) {
+  function FundingBreakdownTooltip({
+    active,
+    payload,
+    label,
+  }: FundingTooltipProps) {
     if (!active || !payload || payload.length === 0) return null;
     const row = payload[0]?.payload;
     return (
@@ -1552,12 +1568,12 @@ export function Scholarships() {
       >
         <p className="font-medium mb-1">{row?.fullName ?? label}</p>
         {payload
-          .filter((p: any) => p.value > 0)
-          .map((p: any) => {
-            const schol = scholarshipById.get(p.dataKey);
+          .filter((p) => Number(p.value) > 0)
+          .map((p) => {
+            const schol = scholarshipById.get(String(p.dataKey));
             if (!schol) return null;
             return (
-              <div key={p.dataKey} className="flex items-center gap-1.5 py-0.5">
+              <div key={String(p.dataKey)} className="flex items-center gap-1.5 py-0.5">
                 <span
                   className="inline-block size-2.5 rounded-sm shrink-0"
                   style={{ backgroundColor: p.fill }}
@@ -1703,9 +1719,9 @@ export function Scholarships() {
       setShowBulkDelete(false);
       if (selected && ids.includes(selected.id)) setSelected(null);
       await load();
-    } catch (e: any) {
+    } catch (e) {
       toast.error("Failed to delete selected scholarships", {
-        description: e.message,
+        description: getErrorMessage(e),
       });
     } finally {
       setBulkDeleting(false);

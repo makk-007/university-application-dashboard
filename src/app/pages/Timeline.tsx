@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { RefreshCw, AlertCircle, Calendar } from "lucide-react";
 import { Skeleton } from "../components/ui/skeleton";
 import { toast } from "sonner";
-import { University, Scholarship } from "../types";
+import { University, Scholarship, ApplicationStatus } from "../types";
 import { StatusBadge } from "../components/StatusBadge";
 import {
   statusConfig,
@@ -13,6 +13,7 @@ import {
 import { getUniversities } from "../../services/universities";
 import { getScholarships } from "../../services/scholarships";
 import { useCycle } from "../context/CycleContext";
+import { getErrorMessage } from "../../services/errors";
 
 // ── Shared shape for both university and scholarship timeline items ────────────
 interface TimelineItem {
@@ -36,7 +37,6 @@ interface TimelineViewProps {
 function TimelineView({
   items, // already filtered by view
   allItems, // full set (for upcoming/past panels)
-  view,
   emptyMessage,
   ganttTitle,
 }: TimelineViewProps) {
@@ -316,7 +316,10 @@ function TimelineView({
                         })}
                       </p>
                     </div>
-                    <StatusBadge status={item.status as any} size="sm" />
+                    <StatusBadge
+                      status={item.status as ApplicationStatus}
+                      size="sm"
+                    />
                   </div>
                 ))
               )}
@@ -366,9 +369,9 @@ export function Timeline() {
       ]);
       setUniversities(unis);
       setScholarships(schols);
-    } catch (e: any) {
-      setError(e.message);
-      toast.error("Failed to load timeline", { description: e.message });
+    } catch (e) {
+      setError(getErrorMessage(e));
+      toast.error("Failed to load timeline", { description: getErrorMessage(e) });
     } finally {
       setLoading(false);
     }

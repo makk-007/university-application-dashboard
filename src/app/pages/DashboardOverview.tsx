@@ -10,7 +10,6 @@ import {
   AlertCircle,
   RefreshCw,
   TrendingUp,
-  DollarSign,
   CalendarClock,
   CalendarPlus,
   Bell,
@@ -55,6 +54,7 @@ import {
 } from "../../services/statusHistory";
 import { University, Scholarship } from "../types";
 import { useCycle } from "../context/CycleContext";
+import { getErrorMessage } from "../../services/errors";
 
 export function DashboardOverview() {
   const { selectedCycleId, cycles, loading: cyclesLoading } = useCycle();
@@ -116,9 +116,9 @@ export function DashboardOverview() {
       ]);
       setUniversities(unis);
       setScholarships(schols);
-    } catch (e: any) {
-      setError(e.message);
-      toast.error("Failed to load dashboard", { description: e.message });
+    } catch (e) {
+      setError(getErrorMessage(e));
+      toast.error("Failed to load dashboard", { description: getErrorMessage(e) });
     } finally {
       setLoading(false);
     }

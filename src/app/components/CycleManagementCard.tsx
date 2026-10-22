@@ -33,6 +33,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "./ui/alert-dialog";
+import { getErrorMessage } from "../../services/errors";
 
 // ── Create / Edit Modal ────────────────────────────────────────────────────
 
@@ -103,11 +104,11 @@ function CycleFormModal({
         toast.success("Cycle created", { description: form.name.trim() });
       }
       onClose();
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e) {
+      setError(getErrorMessage(e));
       toast.error(
         isEditing ? "Failed to update cycle" : "Failed to create cycle",
-        { description: e.message },
+        { description: getErrorMessage(e) },
       );
     } finally {
       setSaving(false);
@@ -572,8 +573,8 @@ export function CycleManagementCard() {
     try {
       await setActiveCycle(cycle.id);
       toast.success("Active cycle updated", { description: cycle.name });
-    } catch (e: any) {
-      toast.error("Failed to set active cycle", { description: e.message });
+    } catch (e) {
+      toast.error("Failed to set active cycle", { description: getErrorMessage(e) });
     } finally {
       setSettingActiveId(null);
     }
@@ -586,8 +587,8 @@ export function CycleManagementCard() {
       await archiveCycle(archiving.id);
       toast.success("Cycle archived", { description: archiving.name });
       setArchiving(null);
-    } catch (e: any) {
-      toast.error("Failed to archive cycle", { description: e.message });
+    } catch (e) {
+      toast.error("Failed to archive cycle", { description: getErrorMessage(e) });
     } finally {
       setArchiveSaving(false);
     }
@@ -599,8 +600,8 @@ export function CycleManagementCard() {
       await archiveCycle(reviewingCycle.id);
       toast.success("Cycle archived", { description: reviewingCycle.name });
       setReviewingCycle(null);
-    } catch (e: any) {
-      toast.error("Failed to archive cycle", { description: e.message });
+    } catch (e) {
+      toast.error("Failed to archive cycle", { description: getErrorMessage(e) });
     }
   };
 
@@ -609,8 +610,8 @@ export function CycleManagementCard() {
     try {
       await unarchiveCycle(cycle.id);
       toast.success("Cycle restored", { description: cycle.name });
-    } catch (e: any) {
-      toast.error("Failed to restore cycle", { description: e.message });
+    } catch (e) {
+      toast.error("Failed to restore cycle", { description: getErrorMessage(e) });
     } finally {
       setUnarchivingId(null);
     }
@@ -622,8 +623,8 @@ export function CycleManagementCard() {
       await deleteCycle(deletingCycle.id);
       toast.success("Cycle deleted", { description: deletingCycle.name });
       setDeletingCycle(null);
-    } catch (e: any) {
-      toast.error("Failed to delete cycle", { description: e.message });
+    } catch (e) {
+      toast.error("Failed to delete cycle", { description: getErrorMessage(e) });
       setDeletingCycle(null);
     }
   };

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { History, ChevronDown, Loader2, AlertCircle } from "lucide-react";
 import { AmountHistoryEntry } from "../types";
+import { getErrorMessage } from "../../services/errors";
 
 interface AmountHistorySectionProps {
   fetchHistory: () => Promise<AmountHistoryEntry[]>;
@@ -48,8 +49,8 @@ export function AmountHistorySection({
         const data = await fetchHistory();
         setEntries(data);
         setLoaded(true);
-      } catch (e: any) {
-        setError(e.message);
+      } catch (e) {
+        setError(getErrorMessage(e));
       } finally {
         setLoading(false);
       }

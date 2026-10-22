@@ -9,7 +9,6 @@ import {
   Trash2,
   AlertCircle,
   X,
-  Check,
   Loader2,
   GraduationCap,
   ArrowUp,
@@ -63,7 +62,7 @@ import {
   reorderChecklistItems,
   deleteChecklistItem,
 } from "../../services/universities";
-import { ConflictError } from "../../services/errors";
+import { ConflictError, getErrorMessage } from "../../services/errors";
 import {
   logUniversityStatusChange,
   getUniversityStatusHistory,
@@ -109,7 +108,7 @@ function AddUniversityModal({
   const [fieldWarnings, setFieldWarnings] = useState<Record<string, string>>(
     {},
   );
-  const set = (k: string, v: any) => {
+  const set = (k: string, v: unknown) => {
     setForm((f) => ({ ...f, [k]: v }));
     setFieldErrors((fe) => {
       const n = { ...fe };
@@ -165,9 +164,9 @@ function AddUniversityModal({
       toast.success("University added", { description: form.name.trim() });
       onSaved();
       onClose();
-    } catch (e: any) {
-      setError(e.message);
-      toast.error("Failed to add university", { description: e.message });
+    } catch (e) {
+      setError(getErrorMessage(e));
+      toast.error("Failed to add university", { description: getErrorMessage(e) });
     } finally {
       setSaving(false);
     }
@@ -441,7 +440,7 @@ function UniversityDetailDrawer({
     setNameError(null);
   }, [university.id]);
 
-  const saveField = async (field: string, value: any) => {
+  const saveField = async (field: string, value: unknown) => {
     setSavingField(field);
     const previousTuition = uni.tuition;
     try {
@@ -468,14 +467,14 @@ function UniversityDetailDrawer({
           updated.currency,
         );
       }
-    } catch (e: any) {
+    } catch (e) {
       if (e instanceof ConflictError) {
         toast.error("Couldn't save", {
           description: e.message,
           action: { label: "Reload", onClick: onClose },
         });
       } else {
-        toast.error("Failed to save", { description: e.message });
+        toast.error("Failed to save", { description: getErrorMessage(e) });
       }
     } finally {
       setSavingField(null);
@@ -506,14 +505,14 @@ function UniversityDetailDrawer({
         description: statusConfig[status].label,
       });
       logUniversityStatusChange(uni.id, previousStatus, status);
-    } catch (e: any) {
+    } catch (e) {
       if (e instanceof ConflictError) {
         toast.error("Couldn't update status", {
           description: e.message,
           action: { label: "Reload", onClick: onClose },
         });
       } else {
-        toast.error("Failed to update status", { description: e.message });
+        toast.error("Failed to update status", { description: getErrorMessage(e) });
       }
     } finally {
       setSavingStatus(false);
@@ -546,14 +545,14 @@ function UniversityDetailDrawer({
         };
         setUni(updated);
         onUpdated(updated);
-      } catch (e: any) {
+      } catch (e) {
         if (e instanceof ConflictError) {
           toast.error("Couldn't save notes", {
             description: e.message,
             action: { label: "Reload", onClick: onClose },
           });
         } else {
-          toast.error("Failed to save notes", { description: e.message });
+          toast.error("Failed to save notes", { description: getErrorMessage(e) });
         }
       } finally {
         setSavingNotes(false);
@@ -597,8 +596,8 @@ function UniversityDetailDrawer({
       };
       setUni(updated);
       onUpdated(updated);
-    } catch (e: any) {
-      toast.error("Failed to update checklist", { description: e.message });
+    } catch (e) {
+      toast.error("Failed to update checklist", { description: getErrorMessage(e) });
     }
   };
 
@@ -611,8 +610,8 @@ function UniversityDetailDrawer({
       onUpdated(updated);
       setNewCheckItem("");
       toast.success("Requirement added");
-    } catch (e: any) {
-      toast.error("Failed to add requirement", { description: e.message });
+    } catch (e) {
+      toast.error("Failed to add requirement", { description: getErrorMessage(e) });
     }
   };
 
@@ -663,10 +662,10 @@ function UniversityDetailDrawer({
     onUpdated(updated);
     try {
       await renameChecklistItem(itemId, trimmed);
-    } catch (e: any) {
+    } catch (e) {
       setUni({ ...uni, checklist: beforeChecklist });
       onUpdated({ ...uni, checklist: beforeChecklist });
-      toast.error("Failed to rename requirement", { description: e.message });
+      toast.error("Failed to rename requirement", { description: getErrorMessage(e) });
     }
   };
 
@@ -677,11 +676,11 @@ function UniversityDetailDrawer({
     onUpdated(updated);
     try {
       await reorderChecklistItems(reordered.map((c) => c.id));
-    } catch (e: any) {
+    } catch (e) {
       setUni({ ...uni, checklist: beforeChecklist });
       onUpdated({ ...uni, checklist: beforeChecklist });
       toast.error("Failed to reorder requirements", {
-        description: e.message,
+        description: getErrorMessage(e),
       });
     }
   };
@@ -1226,9 +1225,9 @@ export function Universities() {
     try {
       // selectedCycleId of null means "All Cycles", so omit the filter
       setUniversities(await getUniversities(selectedCycleId ?? undefined));
-    } catch (e: any) {
-      setError(e.message);
-      toast.error("Failed to load universities", { description: e.message });
+    } catch (e) {
+      setError(getErrorMessage(e));
+      toast.error("Failed to load universities", { description: getErrorMessage(e) });
     } finally {
       setLoading(false);
     }
@@ -1457,9 +1456,9 @@ export function Universities() {
       setShowBulkDelete(false);
       if (selectedUni && ids.includes(selectedUni.id)) setSelectedUni(null);
       await load();
-    } catch (e: any) {
+    } catch (e) {
       toast.error("Failed to delete selected universities", {
-        description: e.message,
+        description: getErrorMessage(e),
       });
     } finally {
       setBulkDeleting(false);
