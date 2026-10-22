@@ -67,6 +67,7 @@ Output is written to `dist/`, ready to deploy to any static host (Vercel, Netlif
 ```bash
 npm run typecheck   # TypeScript, strict mode
 npm run lint        # ESLint (errors fail CI; warnings are tracked)
+npm test             # Vitest: utilities and service failure paths
 npm run build       # Production build (needs the VITE_SUPABASE_* variables)
 ```
 
