@@ -70,7 +70,7 @@ export function ChecklistEditor({
               type="checkbox"
               checked={item.completed}
               onChange={() => onToggle(item.id, !item.completed)}
-              className="size-4 rounded border-border text-primary focus:ring-ring cursor-pointer"
+              className="size-4 rounded border-border accent-[var(--brand-600)] cursor-pointer"
             />
             {rename.editingId === item.id ? (
               <input
