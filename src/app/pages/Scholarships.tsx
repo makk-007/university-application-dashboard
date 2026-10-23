@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { motion, AnimatePresence, Reorder } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import {
   Plus,
   Search,
@@ -17,7 +17,6 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  GripVertical,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Scholarship, ApplicationStatus, University } from "../types";
@@ -87,6 +86,7 @@ import { ModalShell } from "../components/ModalShell";
 import { StatusSelector } from "../components/StatusSelector";
 import { EditableLink } from "../components/EditableLink";
 import { EditableName } from "../components/EditableName";
+import { ChecklistEditor } from "../components/ChecklistEditor";
 
 // Minimal shape of what Recharts passes to the funding-breakdown tooltip.
 interface FundingTooltipProps {
@@ -1050,89 +1050,30 @@ function ScholarshipDetailDrawer({
             </div>
           </div>
 
-          <div>
-            <label className="text-sm font-medium text-foreground mb-3 block">
-              Requirements Checklist{" "}
-              <span className="ml-2 text-xs text-muted-foreground font-normal tabular-nums">
-                {completed}/{total}
-              </span>
-            </label>
-            <Reorder.Group
-              axis="y"
-              values={s.checklist}
-              onReorder={handleReorderCheck}
-              className="space-y-2"
-            >
-              {s.checklist.map((item) => (
-                <Reorder.Item
-                  key={item.id}
-                  value={item}
-                  className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors group"
-                >
-                  <div className="cursor-grab active:cursor-grabbing text-muted-foreground/50 group-hover:text-muted-foreground touch-none">
-                    <GripVertical className="size-4" aria-hidden="true" />
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={item.completed}
-                    onChange={() => handleToggleCheck(item.id, !item.completed)}
-                    className="size-4 rounded border-border text-primary focus:ring-ring cursor-pointer"
-                  />
-                  {editingChecklistId === item.id ? (
-                    <input
-                      autoFocus
-                      value={editChecklistText}
-                      onChange={(e) => setEditChecklistText(e.target.value)}
-                      onBlur={() => handleRenameCheck(item.id)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter")
-                          (e.target as HTMLInputElement).blur();
-                        if (e.key === "Escape") {
-                          setEditingChecklistId(null);
-                        }
-                      }}
-                      className="flex-1 text-sm bg-transparent border-b border-primary outline-none text-foreground"
-                    />
-                  ) : (
-                    <motion.span
-                      initial={false}
-                      animate={{ opacity: item.completed ? 0.6 : 1 }}
-                      transition={{ duration: 0.15 }}
-                      onClick={() => {
-                        setEditingChecklistId(item.id);
-                        setEditChecklistText(item.item);
-                      }}
-                      className={`flex-1 text-sm cursor-text ${item.completed ? "line-through text-muted-foreground" : "text-foreground"}`}
-                    >
-                      {item.item}
-                    </motion.span>
-                  )}
-                  <button
-                    onClick={() => handleDeleteCheck(item.id)}
-                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-destructive/10 hover:text-destructive rounded transition-all"
-                  >
-                    <Trash2 className="size-3.5" aria-hidden="true" />
-                  </button>
-                </Reorder.Item>
-              ))}
-            </Reorder.Group>
-            <div className="mt-3 flex gap-2">
-              <input
-                value={newCheckItem}
-                onChange={(e) => setNewCheckItem(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleAddCheck()}
-                placeholder="Add new requirement..."
-                className={`flex-1 ${inputCls}`}
-              />
-              <button
-                onClick={handleAddCheck}
-                className="px-4 h-9 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors flex items-center gap-1.5 text-sm"
-              >
-                <Plus className="size-4" />
-                Add
-              </button>
-            </div>
-          </div>
+          <ChecklistEditor
+            items={s.checklist}
+            completed={completed}
+            total={total}
+            onReorder={handleReorderCheck}
+            onToggle={handleToggleCheck}
+            onDelete={handleDeleteCheck}
+            rename={{
+              editingId: editingChecklistId,
+              text: editChecklistText,
+              onTextChange: setEditChecklistText,
+              onStart: (id, currentText) => {
+                setEditingChecklistId(id);
+                setEditChecklistText(currentText);
+              },
+              onCommit: handleRenameCheck,
+              onCancel: () => setEditingChecklistId(null),
+            }}
+            add={{
+              value: newCheckItem,
+              onChange: setNewCheckItem,
+              onSubmit: handleAddCheck,
+            }}
+          />
 
           <StatusHistorySection
             fetchHistory={() => getScholarshipStatusHistory(s.id)}
