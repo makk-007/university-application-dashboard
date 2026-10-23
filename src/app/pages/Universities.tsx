@@ -35,7 +35,6 @@ import { StatusBadge } from "../components/StatusBadge";
 import { Skeleton } from "../components/ui/skeleton";
 import {
   statusConfig,
-  statusStrong,
   ALL_STATUSES,
   UNI_STATUSES,
   getDaysUntil,
@@ -72,6 +71,9 @@ import {
   getUniversityAmountHistory,
 } from "../../services/amountHistory";
 import { Pagination } from "../components/Pagination";
+import { BulkActionBar } from "../components/BulkActionBar";
+import { ModalShell } from "../components/ModalShell";
+import { StatusSelector } from "../components/StatusSelector";
 
 const REGIONS = [
   "North America",
@@ -174,197 +176,174 @@ function AddUniversityModal({
   };
 
   return (
-    <div
-      className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 8 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 8 }}
-        transition={{ duration: 0.2, ease: "easeOut" }}
-        className="bg-card rounded-xl border card-raised w-full sm:max-w-lg sm:max-h-[90vh] h-full sm:h-auto overflow-y-auto"
-      >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-          <h2 className="text-lg font-semibold text-card-foreground">
-            Add University
-          </h2>
+    <ModalShell title="Add University" onClose={onClose}>
+      <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        {error && (
+          <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2">
+            <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
+            {error}
+          </div>
+        )}
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-1.5">
+            University Name *
+          </label>
+          <input
+            value={form.name}
+            onChange={(e) => set("name", e.target.value)}
+            className={`${inputCls} ${fieldErrors.name ? "border-destructive focus-visible:border-destructive" : ""}`}
+            placeholder="e.g. TU Delft"
+          />
+          {fieldErrors.name && (
+            <p className="text-xs text-destructive mt-1">
+              {fieldErrors.name}
+            </p>
+          )}
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1.5">
+              Region *
+            </label>
+            <select
+              value={form.region}
+              onChange={(e) => set("region", e.target.value)}
+              className={selectCls}
+            >
+              {REGIONS.map((r) => (
+                <option key={r}>{r}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1.5">
+              Status
+            </label>
+            <select
+              value={form.status}
+              onChange={(e) => set("status", e.target.value)}
+              className={selectCls}
+            >
+              {UNI_STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {statusConfig[s].label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1.5">
+              Tuition
+            </label>
+            <input
+              type="number"
+              min={0}
+              value={form.tuition}
+              onChange={(e) => set("tuition", Number(e.target.value))}
+              className={`${inputCls} ${fieldErrors.tuition ? "border-destructive" : ""}`}
+            />
+            {fieldErrors.tuition && (
+              <p className="text-xs text-destructive mt-1">
+                {fieldErrors.tuition}
+              </p>
+            )}
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1.5">
+              Currency
+            </label>
+            <select
+              value={form.currency}
+              onChange={(e) => set("currency", e.target.value)}
+              className={selectCls}
+            >
+              {getAllCurrencyCodes().map((c) => (
+                <option key={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1.5">
+              Opening Date
+            </label>
+            <input
+              type="date"
+              value={form.startDate}
+              onChange={(e) => set("startDate", e.target.value)}
+              className={inputCls}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1.5">
+              Deadline
+            </label>
+            <input
+              type="date"
+              value={form.deadline}
+              onChange={(e) => set("deadline", e.target.value)}
+              className={`${inputCls} ${fieldErrors.deadline ? "border-destructive" : ""}`}
+            />
+          </div>
+        </div>
+        {fieldErrors.deadline && (
+          <p className="text-xs text-destructive -mt-2">
+            {fieldErrors.deadline}
+          </p>
+        )}
+        {!fieldErrors.deadline && fieldWarnings.deadline && (
+          <p className="text-xs text-amber-600 dark:text-amber-400 -mt-2">
+            {fieldWarnings.deadline}
+          </p>
+        )}
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-1.5">
+            Application Link
+          </label>
+          <input
+            value={form.applicationLink}
+            onChange={(e) => set("applicationLink", e.target.value)}
+            placeholder="https://..."
+            className={`${inputCls} ${fieldErrors.applicationLink ? "border-destructive focus-visible:border-destructive" : ""}`}
+          />
+          {fieldErrors.applicationLink && (
+            <p className="text-xs text-destructive mt-1">
+              {fieldErrors.applicationLink}
+            </p>
+          )}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-1.5">
+            Notes
+          </label>
+          <textarea
+            rows={3}
+            value={form.notes}
+            onChange={(e) => set("notes", e.target.value)}
+            className={textareaCls}
+          />
+        </div>
+        <div className="flex gap-3 pt-2">
           <button
+            type="button"
             onClick={onClose}
-            aria-label="Close dialog"
-            className="text-muted-foreground hover:text-foreground p-1 rounded-md hover:bg-accent transition-colors"
+            className="flex-1 h-9 border border-border rounded-md text-sm text-foreground hover:bg-accent transition-colors"
           >
-            <X className="size-4" aria-hidden="true" />
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={saving}
+            className="flex-1 h-9 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+          >
+            {saving ? "Saving…" : "Add University"}
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {error && (
-            <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2">
-              <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
-              {error}
-            </div>
-          )}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">
-              University Name *
-            </label>
-            <input
-              value={form.name}
-              onChange={(e) => set("name", e.target.value)}
-              className={`${inputCls} ${fieldErrors.name ? "border-destructive focus-visible:border-destructive" : ""}`}
-              placeholder="e.g. TU Delft"
-            />
-            {fieldErrors.name && (
-              <p className="text-xs text-destructive mt-1">
-                {fieldErrors.name}
-              </p>
-            )}
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">
-                Region *
-              </label>
-              <select
-                value={form.region}
-                onChange={(e) => set("region", e.target.value)}
-                className={selectCls}
-              >
-                {REGIONS.map((r) => (
-                  <option key={r}>{r}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">
-                Status
-              </label>
-              <select
-                value={form.status}
-                onChange={(e) => set("status", e.target.value)}
-                className={selectCls}
-              >
-                {UNI_STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {statusConfig[s].label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">
-                Tuition
-              </label>
-              <input
-                type="number"
-                min={0}
-                value={form.tuition}
-                onChange={(e) => set("tuition", Number(e.target.value))}
-                className={`${inputCls} ${fieldErrors.tuition ? "border-destructive" : ""}`}
-              />
-              {fieldErrors.tuition && (
-                <p className="text-xs text-destructive mt-1">
-                  {fieldErrors.tuition}
-                </p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">
-                Currency
-              </label>
-              <select
-                value={form.currency}
-                onChange={(e) => set("currency", e.target.value)}
-                className={selectCls}
-              >
-                {getAllCurrencyCodes().map((c) => (
-                  <option key={c}>{c}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">
-                Opening Date
-              </label>
-              <input
-                type="date"
-                value={form.startDate}
-                onChange={(e) => set("startDate", e.target.value)}
-                className={inputCls}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">
-                Deadline
-              </label>
-              <input
-                type="date"
-                value={form.deadline}
-                onChange={(e) => set("deadline", e.target.value)}
-                className={`${inputCls} ${fieldErrors.deadline ? "border-destructive" : ""}`}
-              />
-            </div>
-          </div>
-          {fieldErrors.deadline && (
-            <p className="text-xs text-destructive -mt-2">
-              {fieldErrors.deadline}
-            </p>
-          )}
-          {!fieldErrors.deadline && fieldWarnings.deadline && (
-            <p className="text-xs text-amber-600 dark:text-amber-400 -mt-2">
-              {fieldWarnings.deadline}
-            </p>
-          )}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">
-              Application Link
-            </label>
-            <input
-              value={form.applicationLink}
-              onChange={(e) => set("applicationLink", e.target.value)}
-              placeholder="https://..."
-              className={`${inputCls} ${fieldErrors.applicationLink ? "border-destructive focus-visible:border-destructive" : ""}`}
-            />
-            {fieldErrors.applicationLink && (
-              <p className="text-xs text-destructive mt-1">
-                {fieldErrors.applicationLink}
-              </p>
-            )}
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">
-              Notes
-            </label>
-            <textarea
-              rows={3}
-              value={form.notes}
-              onChange={(e) => set("notes", e.target.value)}
-              className={textareaCls}
-            />
-          </div>
-          <div className="flex gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 h-9 border border-border rounded-md text-sm text-foreground hover:bg-accent transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex-1 h-9 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
-            >
-              {saving ? "Saving…" : "Add University"}
-            </button>
-          </div>
-        </form>
-      </motion.div>
-    </div>
+      </form>
+    </ModalShell>
   );
 }
 
@@ -918,32 +897,13 @@ function UniversityDetailDrawer({
             )}
           </div>
 
-          <div>
-            <label className="text-sm font-medium text-foreground mb-2 block">
-              Application Status
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {UNI_STATUSES.map((status) => {
-                const config = statusConfig[status];
-                const isSelected = uni.status === status;
-                return (
-                  <button
-                    key={status}
-                    onClick={() => handleStatusChange(status)}
-                    disabled={savingStatus}
-                    style={
-                      isSelected
-                        ? { borderColor: statusStrong[status] }
-                        : undefined
-                    }
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border-2 ${isSelected ? `${config.color} ${config.bgColor}` : "bg-muted text-muted-foreground border-transparent hover:border-border"}`}
-                  >
-                    {config.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          <StatusSelector
+            label="Application Status"
+            statuses={UNI_STATUSES}
+            current={uni.status}
+            disabled={savingStatus}
+            onSelect={handleStatusChange}
+          />
 
           <div>
             <div className="flex justify-between items-center mb-2">
@@ -1562,36 +1522,15 @@ export function Universities() {
           </div>
         </div>
 
-        {selectedIds.size > 0 && (
-          <div className="flex items-center justify-between gap-3 bg-secondary/50 border border-border rounded-lg px-4 py-3 mb-4 sm:mb-6">
-            <span className="text-sm text-foreground">
-              {selectedIds.size}{" "}
-              {selectedIds.size === 1 ? "university" : "universities"} selected
-            </span>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setSelectedIds(new Set())}
-                className="px-3 h-8 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Clear
-              </button>
-              <button
-                onClick={() => setShowBulkDuplicate(true)}
-                className="inline-flex items-center gap-1.5 px-3 h-8 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 transition-colors"
-              >
-                <Copy className="size-3.5" aria-hidden="true" />
-                Duplicate to Cycle
-              </button>
-              <button
-                onClick={() => setShowBulkDelete(true)}
-                className="inline-flex items-center gap-1.5 px-3 h-8 bg-destructive text-destructive-foreground text-sm font-medium rounded-md hover:bg-destructive/90 transition-colors"
-              >
-                <Trash2 className="size-3.5" aria-hidden="true" />
-                Delete Selected
-              </button>
-            </div>
-          </div>
-        )}
+        <BulkActionBar
+          count={selectedIds.size}
+          singular="university"
+          plural="universities"
+          onClear={() => setSelectedIds(new Set())}
+          onDuplicate={() => setShowBulkDuplicate(true)}
+          onDelete={() => setShowBulkDelete(true)}
+          className="mb-4 sm:mb-6"
+        />
 
         {loading ? (
           <div className="bg-card rounded-xl border card-resting overflow-hidden hidden sm:block">
