@@ -38,7 +38,6 @@ import { Skeleton } from "../components/ui/skeleton";
 import { OverdueBadge } from "../components/OverdueBadge";
 import {
   statusConfig,
-  statusStrong,
   ALL_STATUSES,
   getDaysUntil,
   getDeadlineUrgency,
@@ -84,6 +83,9 @@ import {
   CartesianGrid,
 } from "recharts";
 import { Pagination } from "../components/Pagination";
+import { BulkActionBar } from "../components/BulkActionBar";
+import { ModalShell } from "../components/ModalShell";
+import { StatusSelector } from "../components/StatusSelector";
 
 // Minimal shape of what Recharts passes to the funding-breakdown tooltip.
 interface FundingTooltipProps {
@@ -289,220 +291,197 @@ function AddScholarshipModal({
   };
 
   return (
-    <div
-      className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 8 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 8 }}
-        transition={{ duration: 0.2, ease: "easeOut" }}
-        className="bg-card rounded-xl border card-raised w-full sm:max-w-lg sm:max-h-[90vh] h-full sm:h-auto overflow-y-auto"
-      >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-          <h2 className="text-lg font-semibold text-card-foreground">
-            Add Scholarship
-          </h2>
-          <button
-            onClick={onClose}
-            aria-label="Close dialog"
-            className="text-muted-foreground hover:text-foreground p-1 rounded-md hover:bg-accent"
-          >
-            <X className="size-4" aria-hidden="true" />
-          </button>
-        </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {error && (
-            <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2">
-              <AlertCircle className="size-4 shrink-0" />
-              {error}
-            </div>
+    <ModalShell title="Add Scholarship" onClose={onClose}>
+      <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        {error && (
+          <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2">
+            <AlertCircle className="size-4 shrink-0" />
+            {error}
+          </div>
+        )}
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-1.5">
+            Scholarship Name *
+          </label>
+          <input
+            value={form.name}
+            onChange={(e) => set("name", e.target.value)}
+            className={`${inputCls} ${fieldErrors.name ? "border-destructive focus-visible:border-destructive" : ""}`}
+            placeholder="e.g. Mastercard Foundation Scholarship"
+          />
+          {fieldErrors.name && (
+            <p className="text-xs text-destructive mt-1">
+              {fieldErrors.name}
+            </p>
           )}
+        </div>
+        <div className="grid grid-cols-3 gap-3">
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5">
-              Scholarship Name *
+              Amount
             </label>
             <input
-              value={form.name}
-              onChange={(e) => set("name", e.target.value)}
-              className={`${inputCls} ${fieldErrors.name ? "border-destructive focus-visible:border-destructive" : ""}`}
-              placeholder="e.g. Mastercard Foundation Scholarship"
+              type="number"
+              min={0}
+              value={form.amount}
+              onChange={(e) => set("amount", Number(e.target.value))}
+              className={`${inputCls} ${fieldErrors.amount ? "border-destructive" : ""}`}
             />
-            {fieldErrors.name && (
+            {fieldErrors.amount && (
               <p className="text-xs text-destructive mt-1">
-                {fieldErrors.name}
+                {fieldErrors.amount}
               </p>
             )}
           </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">
-                Amount
-              </label>
-              <input
-                type="number"
-                min={0}
-                value={form.amount}
-                onChange={(e) => set("amount", Number(e.target.value))}
-                className={`${inputCls} ${fieldErrors.amount ? "border-destructive" : ""}`}
-              />
-              {fieldErrors.amount && (
-                <p className="text-xs text-destructive mt-1">
-                  {fieldErrors.amount}
-                </p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">
-                Currency
-              </label>
-              <select
-                value={form.currency}
-                onChange={(e) => set("currency", e.target.value)}
-                className={selectCls}
-              >
-                {getAllCurrencyCodes().map((c) => (
-                  <option key={c}>{c}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">
-                Status
-              </label>
-              <select
-                value={form.status}
-                onChange={(e) => set("status", e.target.value)}
-                className={selectCls}
-              >
-                {ALL_STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {statusConfig[s].label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5">
-              Coverage
+              Currency
             </label>
             <select
-              value={form.coverage}
-              onChange={(e) => set("coverage", e.target.value)}
+              value={form.currency}
+              onChange={(e) => set("currency", e.target.value)}
               className={selectCls}
             >
-              {COVERAGE_OPTIONS.map((c) => (
+              {getAllCurrencyCodes().map((c) => (
                 <option key={c}>{c}</option>
               ))}
             </select>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">
-                Start Date
-              </label>
-              <input
-                type="date"
-                value={form.startDate}
-                onChange={(e) => set("startDate", e.target.value)}
-                className={inputCls}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">
-                Deadline
-              </label>
-              <input
-                type="date"
-                value={form.deadline}
-                onChange={(e) => set("deadline", e.target.value)}
-                className={`${inputCls} ${fieldErrors.deadline ? "border-destructive" : ""}`}
-              />
-            </div>
-          </div>
-          {fieldErrors.deadline && (
-            <p className="text-xs text-destructive -mt-2">
-              {fieldErrors.deadline}
-            </p>
-          )}
-          {!fieldErrors.deadline && fieldWarnings.deadline && (
-            <p className="text-xs text-amber-600 dark:text-amber-400 -mt-2">
-              {fieldWarnings.deadline}
-            </p>
-          )}
-          {universities.length > 0 && (
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">
-                Eligible Universities
-              </label>
-              <div className="border border-border rounded-md max-h-40 overflow-y-auto p-2 space-y-1 bg-muted/20">
-                {universities.map((u) => (
-                  <label
-                    key={u.id}
-                    className="flex items-center gap-2.5 px-2 py-1.5 rounded hover:bg-muted cursor-pointer"
-                  >
-                    <div
-                      onClick={() => toggleUni(u.id)}
-                      className={`size-4 rounded border-2 flex items-center justify-center transition-colors shrink-0 cursor-pointer ${form.eligibleUniversities.includes(u.id) ? "bg-primary border-primary text-primary-foreground" : "border-border"}`}
-                    >
-                      {form.eligibleUniversities.includes(u.id) && (
-                        <Check className="size-3" />
-                      )}
-                    </div>
-                    <span className="text-sm text-foreground">{u.name}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5">
-              Scholarship Link
+              Status
+            </label>
+            <select
+              value={form.status}
+              onChange={(e) => set("status", e.target.value)}
+              className={selectCls}
+            >
+              {ALL_STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {statusConfig[s].label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-1.5">
+            Coverage
+          </label>
+          <select
+            value={form.coverage}
+            onChange={(e) => set("coverage", e.target.value)}
+            className={selectCls}
+          >
+            {COVERAGE_OPTIONS.map((c) => (
+              <option key={c}>{c}</option>
+            ))}
+          </select>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1.5">
+              Start Date
             </label>
             <input
-              value={form.link}
-              onChange={(e) => set("link", e.target.value)}
-              placeholder="https://..."
-              className={`${inputCls} ${fieldErrors.link ? "border-destructive focus-visible:border-destructive" : ""}`}
+              type="date"
+              value={form.startDate}
+              onChange={(e) => set("startDate", e.target.value)}
+              className={inputCls}
             />
-            {fieldErrors.link && (
-              <p className="text-xs text-destructive mt-1">
-                {fieldErrors.link}
-              </p>
-            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5">
-              Notes
+              Deadline
             </label>
-            <textarea
-              rows={3}
-              value={form.notes}
-              onChange={(e) => set("notes", e.target.value)}
-              className={textareaCls}
+            <input
+              type="date"
+              value={form.deadline}
+              onChange={(e) => set("deadline", e.target.value)}
+              className={`${inputCls} ${fieldErrors.deadline ? "border-destructive" : ""}`}
             />
           </div>
-          <div className="flex gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 h-9 border border-border rounded-md text-sm text-foreground hover:bg-accent transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex-1 h-9 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
-            >
-              {saving ? "Saving…" : "Add Scholarship"}
-            </button>
+        </div>
+        {fieldErrors.deadline && (
+          <p className="text-xs text-destructive -mt-2">
+            {fieldErrors.deadline}
+          </p>
+        )}
+        {!fieldErrors.deadline && fieldWarnings.deadline && (
+          <p className="text-xs text-amber-600 dark:text-amber-400 -mt-2">
+            {fieldWarnings.deadline}
+          </p>
+        )}
+        {universities.length > 0 && (
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1.5">
+              Eligible Universities
+            </label>
+            <div className="border border-border rounded-md max-h-40 overflow-y-auto p-2 space-y-1 bg-muted/20">
+              {universities.map((u) => (
+                <label
+                  key={u.id}
+                  className="flex items-center gap-2.5 px-2 py-1.5 rounded hover:bg-muted cursor-pointer"
+                >
+                  <div
+                    onClick={() => toggleUni(u.id)}
+                    className={`size-4 rounded border-2 flex items-center justify-center transition-colors shrink-0 cursor-pointer ${form.eligibleUniversities.includes(u.id) ? "bg-primary border-primary text-primary-foreground" : "border-border"}`}
+                  >
+                    {form.eligibleUniversities.includes(u.id) && (
+                      <Check className="size-3" />
+                    )}
+                  </div>
+                  <span className="text-sm text-foreground">{u.name}</span>
+                </label>
+              ))}
+            </div>
           </div>
-        </form>
-      </motion.div>
-    </div>
+        )}
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-1.5">
+            Scholarship Link
+          </label>
+          <input
+            value={form.link}
+            onChange={(e) => set("link", e.target.value)}
+            placeholder="https://..."
+            className={`${inputCls} ${fieldErrors.link ? "border-destructive focus-visible:border-destructive" : ""}`}
+          />
+          {fieldErrors.link && (
+            <p className="text-xs text-destructive mt-1">
+              {fieldErrors.link}
+            </p>
+          )}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-1.5">
+            Notes
+          </label>
+          <textarea
+            rows={3}
+            value={form.notes}
+            onChange={(e) => set("notes", e.target.value)}
+            className={textareaCls}
+          />
+        </div>
+        <div className="flex gap-3 pt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 h-9 border border-border rounded-md text-sm text-foreground hover:bg-accent transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={saving}
+            className="flex-1 h-9 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+          >
+            {saving ? "Saving…" : "Add Scholarship"}
+          </button>
+        </div>
+      </form>
+    </ModalShell>
   );
 }
 
@@ -1079,32 +1058,13 @@ function ScholarshipDetailDrawer({
             )}
           </div>
 
-          <div>
-            <label className="text-sm font-medium text-foreground mb-2 block">
-              Status
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {ALL_STATUSES.map((status) => {
-                const config = statusConfig[status];
-                const isSelected = s.status === status;
-                return (
-                  <button
-                    key={status}
-                    onClick={() => handleStatusChange(status)}
-                    disabled={savingStatus}
-                    style={
-                      isSelected
-                        ? { borderColor: statusStrong[status] }
-                        : undefined
-                    }
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border-2 ${isSelected ? `${config.color} ${config.bgColor}` : "bg-muted text-muted-foreground border-transparent hover:border-border"}`}
-                  >
-                    {config.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          <StatusSelector
+            label="Status"
+            statuses={ALL_STATUSES}
+            current={s.status}
+            disabled={savingStatus}
+            onSelect={handleStatusChange}
+          />
 
           <div>
             <div className="flex justify-between items-center mb-2">
@@ -1962,37 +1922,14 @@ export function Scholarships() {
               </div>
             )}
 
-            {selectedIds.size > 0 && (
-              <div className="flex items-center justify-between gap-3 bg-secondary/50 border border-border rounded-lg px-4 py-3">
-                <span className="text-sm text-foreground">
-                  {selectedIds.size}{" "}
-                  {selectedIds.size === 1 ? "scholarship" : "scholarships"}{" "}
-                  selected
-                </span>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setSelectedIds(new Set())}
-                    className="px-3 h-8 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    Clear
-                  </button>
-                  <button
-                    onClick={() => setShowBulkDuplicate(true)}
-                    className="inline-flex items-center gap-1.5 px-3 h-8 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 transition-colors"
-                  >
-                    <Copy className="size-3.5" aria-hidden="true" />
-                    Duplicate to Cycle
-                  </button>
-                  <button
-                    onClick={() => setShowBulkDelete(true)}
-                    className="inline-flex items-center gap-1.5 px-3 h-8 bg-destructive text-destructive-foreground text-sm font-medium rounded-md hover:bg-destructive/90 transition-colors"
-                  >
-                    <Trash2 className="size-3.5" aria-hidden="true" />
-                    Delete Selected
-                  </button>
-                </div>
-              </div>
-            )}
+            <BulkActionBar
+              count={selectedIds.size}
+              singular="scholarship"
+              plural="scholarships"
+              onClear={() => setSelectedIds(new Set())}
+              onDuplicate={() => setShowBulkDuplicate(true)}
+              onDelete={() => setShowBulkDelete(true)}
+            />
 
             {filtered.length === 0 ? (
               <div className="bg-card rounded-xl border p-12 text-center card-resting">
