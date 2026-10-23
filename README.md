@@ -8,6 +8,8 @@ Built with **React + TypeScript + Tailwind CSS** on the frontend and **Supabase*
 
 ## Setup Instructions
 
+**Prerequisites:** Node.js 22.13 or newer (24 also works) and npm. Vite alone only needs Node 20.19+, but the test runner and linter need 22.13+. You also need a free [Supabase](https://supabase.com) account.
+
 ### 1. Create a Supabase Project
 
 1. Go to [supabase.com](https://supabase.com) and create a free account.
@@ -75,11 +77,33 @@ The same checks run on every push to `main` and on pull requests through GitHub 
 
 ---
 
+## Architecture
+
+```
+Pages and components  ->  Services (data access)  ->  Typed Supabase client  ->  PostgreSQL + RLS
+        ^
+ Contexts: auth, cycle, theme, undoable deletes
+```
+
+- **Layers.** Pages and components own the UI and local state. All database access goes through `src/services/` (one file per entity), which maps database rows to the app's types in `src/app/types.ts`. Services use a single Supabase client typed with generated definitions (`lib/database.types.ts`), so a renamed column shows up as a type error instead of a runtime surprise.
+- **Security.** Row Level Security enforces `auth.uid() = user_id` on every table. The user id the client reads from its local session (`services/session.ts`, no network call) is only used to filter and stamp rows, never to authorize anything.
+- **Failure-safe writes.** Multi-step operations check every result and compensate: a record whose checklist insert fails is removed, scholarship links are added before stale ones are removed, and a failed active-cycle switch restores the previous active cycle. Edits are checked against the record's last-known update time, so a stale tab cannot silently overwrite newer changes.
+- **Routing and loading.** Pages are lazy-loaded, so the sign-in screen does not download the charting library. Route errors, including a page that fails to load, fall through to the app-level error boundary.
+- **Shared UI.** Reusable pieces (pagination, modal shell, status selector, bulk-action bar, editable fields, checklist editor) live in `components/`; page-specific logic stays in the page.
+- **Testing and CI.** Vitest covers the pure utilities (CSV, import validation, deadline logic, currencies, calendar export, pagination) and the services' failure paths against an in-memory Supabase stand-in (`src/test/fakeSupabase.ts`). GitHub Actions runs typecheck, lint, tests, and a build on every push to `main` and every pull request.
+
+---
+
 ## Project Structure
 
 ```
+.github/workflows/ci.yml                     # Typecheck, lint, test, build on push and PR
 src/
+├── main.tsx
 ├── app/
+│   ├── App.tsx                              # Providers + router
+│   ├── routes.tsx                           # Lazy-loaded routes
+│   ├── types.ts                             # Shared TypeScript types
 │   ├── components/
 │   │   ├── Layout.tsx                       # Sidebar nav + auth guard
 │   │   ├── KPICard.tsx                      # Dashboard metric cards
@@ -96,7 +120,17 @@ src/
 │   │   ├── StatusHistorySection.tsx         # Collapsible status-change timeline
 │   │   ├── AmountHistorySection.tsx         # Collapsible tuition/amount timeline
 │   │   ├── PageTransition.tsx               # Route transition wrapper
-│   │   └── ErrorBoundary.tsx
+│   │   ├── ErrorBoundary.tsx                # App-level error screen
+│   │   ├── RouteFallback.tsx                # Themed blank screen on first page load
+│   │   ├── RouteError.tsx                   # Sends route errors to ErrorBoundary
+│   │   ├── Pagination.tsx                   # Shared pager for list pages
+│   │   ├── StatusSelector.tsx               # Status buttons in detail drawers
+│   │   ├── ModalShell.tsx                   # Backdrop, card, and header for add modals
+│   │   ├── BulkActionBar.tsx                # "N selected" bar with bulk actions
+│   │   ├── EditableName.tsx                 # Click-to-edit drawer heading
+│   │   ├── EditableLink.tsx                 # Drawer URL field with save indicator
+│   │   ├── ChecklistEditor.tsx              # Drag-to-reorder requirements checklist
+│   │   └── ui/                              # Small shadcn-style primitives (button, dropdown, alert dialog, ...)
 │   ├── context/
 │   │   ├── AuthContext.tsx                  # Supabase auth state
 │   │   ├── CycleContext.tsx                 # Active/selected cycle state
@@ -105,14 +139,15 @@ src/
 │   ├── hooks/
 │   │   ├── useEscapeKey.ts                  # Esc-to-close for custom overlays
 │   │   └── usePersistedFilterState.ts       # localStorage-backed filter/sort state
-│   ├── utils/
+│   ├── utils/                               # Unit tests (*.test.ts) sit next to each file
 │   │   ├── statusConfig.ts                  # Status labels, colors, icons, helpers
 │   │   ├── currencies.ts                    # Built-in + user-added currency list
 │   │   ├── csv.ts                           # CSV parse/serialize (no dependency)
 │   │   ├── dataExport.ts                    # JSON backup + CSV export builders
 │   │   ├── dataImport.ts                    # CSV import parsing & validation
 │   │   ├── icsExport.ts                     # .ics calendar file generation
-│   │   └── notifications.ts                 # Browser Notification API wrapper
+│   │   ├── notifications.ts                 # Browser Notification API wrapper
+│   │   └── pagination.ts                    # Page-button and ellipsis logic
 │   ├── pages/
 │   │   ├── Auth.tsx                         # Sign in / sign up
 │   │   ├── DashboardOverview.tsx            # KPIs, charts, deadlines, activity feed
@@ -120,25 +155,33 @@ src/
 │   │   ├── Scholarships.tsx                 # List, funding charts, detail drawer
 │   │   ├── Timeline.tsx                     # Gantt-style application timeline
 │   │   └── Settings.tsx                     # Cycles, data, currencies, account
-│   ├── lib/supabase.ts                      # Typed Supabase client
-│   ├── lib/database.types.ts                # Generated DB types (supabase gen types)
-│   ├── routes.tsx
-│   └── types.ts                             # Shared TypeScript types
+│   └── lib/
+│       ├── supabase.ts                      # Typed Supabase client
+│       └── database.types.ts                # Generated DB types (supabase gen types)
 ├── services/                                # Data access layer (one file per entity)
 │   ├── universities.ts                      # CRUD, duplicate, bulk delete, import
 │   ├── scholarships.ts                      # CRUD, duplicate, bulk delete, import
 │   ├── cycles.ts                            # CRUD, archive, duplicate, close-out
 │   ├── statusHistory.ts                     # Status-change log + activity feed
 │   ├── amountHistory.ts                     # Tuition/amount change log
-│   └── errors.ts                            # Error parsing + ConflictError
+│   ├── session.ts                           # Current user id from the local session
+│   ├── errors.ts                            # Error parsing + ConflictError
+│   └── writes.test.ts                       # Failure-path tests for multi-step writes
+├── test/
+│   └── fakeSupabase.ts                      # In-memory Supabase stand-in for tests
 └── styles/
+    ├── index.css
+    ├── tailwind.css
+    ├── theme.css                            # Design tokens (light + dark)
+    └── fonts.css
 supabase/
-├── schema.sql                               # Full schema (fresh install)
-└── migrations/                               # Incremental migrations (existing DB)
+├── schema.sql                               # Full schema (fresh install, safe to re-run)
+└── migrations/                              # Incremental migrations (existing DB)
     ├── 001_add_withdrawn_status.sql
     ├── 002_add_cycle_archived_flag.sql
     ├── 003_add_status_history.sql
-    └── 004_add_amount_history.sql
+    ├── 004_add_amount_history.sql
+    └── 005_add_checklist_sort_order.sql
 ```
 
 ---
@@ -196,18 +239,21 @@ Every table has Row Level Security enabled. Policies scope all reads and writes 
 
 ## Tech Stack
 
-| Layer         | Technology                              |
-| ------------- | --------------------------------------- |
-| Frontend      | React 18 + TypeScript                   |
-| Styling       | Tailwind CSS v4                         |
-| UI Components | Radix UI primitives, shadcn-ui patterns |
-| Animation     | Motion (Framer Motion)                  |
-| Charts        | Recharts                                |
-| Toasts        | Sonner                                  |
-| Routing       | React Router v7                         |
-| Backend       | Supabase (PostgreSQL)                   |
-| Auth          | Supabase Auth                           |
-| Build         | Vite                                    |
+| Layer         | Technology                                                     |
+| ------------- | -------------------------------------------------------------- |
+| Frontend      | React 18 + TypeScript (strict)                                 |
+| Styling       | Tailwind CSS v4                                                |
+| UI Components | shadcn-ui patterns, Radix UI (alert dialog, dropdown menu)     |
+| Animation     | Motion (Framer Motion)                                         |
+| Charts        | Recharts                                                       |
+| Toasts        | Sonner                                                         |
+| Routing       | React Router v7 (lazy-loaded routes)                           |
+| Backend       | Supabase (PostgreSQL)                                          |
+| Auth          | Supabase Auth                                                  |
+| Build         | Vite                                                           |
+| Testing       | Vitest                                                         |
+| Linting       | ESLint, typescript-eslint, React Hooks rules                   |
+| CI            | GitHub Actions (typecheck, lint, test, build)                  |
 
 No external CSV, calendar, or notification libraries are used - those are implemented directly in `src/app/utils/` to keep the dependency footprint minimal.
 
@@ -236,8 +282,12 @@ npx supabase gen types typescript --project-id <your-project-ref> > src/app/lib/
 
 ---
 
-## License
+## Changelog
 
-[#-license](#-license)
+See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
+
+---
+
+## License
 
 This project is licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE). You're free to use, modify, and distribute it for any noncommercial purpose. Commercial use requires permission from the licensor.
